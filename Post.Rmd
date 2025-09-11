@@ -1,0 +1,50 @@
+---
+title: "Post Stuff"
+author: "Rutuja"
+date: "2025-06-16"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(viridis)
+library(tidyverse)
+```
+
+
+```{r}
+print("loading data")
+d <- read.delim("clean/the_greater_big_data_file.txt", header=TRUE, sep=" ")
+# d <- read.delim("cleaner/predicted.txt", header=TRUE, sep=" ")
+print("loaded data. running models. breathe.")
+
+d$rep.fitted <- (d$rep.fitted.dip + d$rep.fitted.hap)/2
+d$collision <- (d$collision.dip + d$collision.hap)/2
+```
+
+
+```{r}
+table(d$SNM, d$collision, d$base.type)
+table(d$collision)
+table(d$collision, d$SNM)
+```
+
+
+```{r}
+d %>% group_by(base.type, collision.dip) %>% summarize(SNM = mean(SNM))
+
+
+d %>% filter(protein) %>% group_by(base.type, collision.dip) %>% summarize(SNM = mean(SNM))
+
+d %>% filter(!protein) %>% group_by(base.type, collision.dip) %>% summarize(SNM = mean(SNM))
+```
+
+
+```{r}
+d[seq(1, 12071326, 10000),] 
+```
+
+

@@ -1,0 +1,165 @@
+---
+title: "Report"
+author: "Rutuja"
+date: "2025-03-06"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+```
+
+```{r}
+model_info <- data.frame(
+  model = c("sharp.dip.SNM", "jacob.dip.SNM", "sharp.etal.dip.SNM", "zhu.dip", "mut.SNM", "sharp.hap.SNM", "jacob.hap.SNM", "sharp.etal.hap.SNM", "sharp.dip.INDEL", "jacob.dip.INDEL", "sharp.etal.dip.INDEL", "sharp.hap.INDEL", "jacob.hap.INDEL", "sharp.etal.hap.INDEL"),
+  colors = c("A-dip.SNM", "A-dip.SNM", "A-dip.SNM", "A-dip.SNM", "A-dip.SNM", "B-hap.SNM", "B-hap.SNM" ,"B-hap.SNM", "C-dip.INDEL", "C-dip.INDEL",  "C-dip.INDEL", "D-hap.INDEL", "D-hap.INDEL", "D-hap.INDEL"),
+  rep = c(-2.052e-01, -7.978e-02, -1.668e-01, -2.215e-01, -1.951e-01, -6.032e-01, -7.171e-02, -3.974e-01, 5.642e-01, 3.822e-01, 4.926e-01, -5.408e-01, 7.076e-01, 2.137e-01),
+  reads = c(-2.217e-05, -1.234e-06, -1.318e-05, 6.391e-06, 3.598e-06, 2.319e-06, 2.438e-06, 2.371e-06, -5.405e-05, -3.627e-05, -4.914e-05, 7.460e-06, -1.101e-05, 3.523e-06),
+  coding = c(2.488e-02, -1.481e-01, -3.701e-02, -2.231e-01, -1.433e-01, 1.098e-01, 2.534e-01, 1.619e-01, -3.889e-01, -1.475e+00, -8.271e-01, -1.516e-01, -1.883e+00, -1.285e+00),
+  collision = c(1.753e-01, 8.724e-02, 1.477e-01, 2.243e-02, 8.972e-02, 2.309e-02, 3.028e-02, 2.582e-02, 1.170e-01, 1.944e-01, 1.421e-01, 2.136e-01, 3.268e-01, 2.786e-01),
+  rep.down = c(-4.775293e-01, -4.791561e-01, -3.913764e-01, -4.539471e-01, -3.558457e-01, -1.010930e+00, -5.756942e-01, -7.130008e-01, -4.886572e-01, -1.010614e+00, -3.404839e-01, -2.721823e+00, -9.137856e-01, -1.060782e+00),
+  rep.up = c(6.360356e-02, 3.130536e-01, 5.559174e-02, 8.412707e-03, -3.542779e-02, -2.037404e-01, 4.232165e-01, -8.627691e-02, 1.596508e+00, 1.720751e+00, 1.310239e+00, 1.4313730922, 2.291084e+00, 1.440745e+00),
+  reads.down = c(-5.111056e-05, -3.279386e-05, -3.481588e-05, 1.233552e-06, -2.119457e-06, -1.844082e-05, -2.759907e-05, -1.311742e-05, -2.195834e-04, -2.886155e-04, -1.806549e-04, NA, -2.631348e-04, NA),
+  reads.up = c(9.835700e-07, 9.795462e-06, 2.927847e-06, 9.678027e-06, 7.210977e-06, 9.951748e-06, 1.181710e-05, 9.085416e-06, -4.201084e-05, 1.466313e-05, 1.024323e-05, 0.0000195016, 7.514009e-06, 1.482445e-05),
+  coding.down = c(-2.158401e-01, -4.738202e-01, -2.330540e-01, -4.072347e-01, -2.762603e-01, -2.084179e-01, -1.706011e-01, -9.560667e-02, -1.198944e+00, -2.430221e+00, -1.436594e+00, -1.496125e+00, -2.878718e+00, -2.017664e+00),
+  coding.up = c(2.787125e-01, 2.049142e-01, 1.678515e-01, -3.122235e-02, -6.219840e-03, 4.547843e-01, 7.285998e-01, 4.370780e-01, 5.297016e-01, 1.466313e-05, -1.774493e-01, 1.7384435618, -8.145218e-01, -5.064310e-01),
+  collision.down = c(1.865925e-02, -1.459507e-01, 1.779274e-02, -1.133967e-01, -4.053164e-03, -1.858414e-01, -2.365411e-01, -1.384750e-01, -5.347440e-01, -7.212018e-01, -3.845017e-01, -8.744888e-01, -6.584588e-01, -4.444185e-01),
+  collision.up = c(3.320266e-01, 3.196031e-01, 2.776003e-01, 1.577637e-01, 1.833552e-01, 2.310384e-01, 2.957517e-01, 1.895493e-01, 7.606449e-01, 1.071910e+00, 6.606783e-01, 1.3048566369, 1.273596e+00, 9.906369e-01)
+)
+```
+
+```{r}
+model_info %>% 
+  ggplot(aes(fct_reorder(model, colors), rep)) + 
+  geom_point(aes(color=colors)) +
+  geom_errorbar(aes(ymin = rep.down, ymax = rep.up)) + 
+  geom_hline(aes(yintercept = 0), color="red") + 
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) 
+
+model_info %>% 
+  ggplot(aes(fct_reorder(model, desc(colors)), rep)) + 
+  geom_point() +
+  geom_errorbar(aes(ymin = rep.down, ymax = rep.up)) + 
+  geom_hline(aes(yintercept = 0), color="red") + 
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
+  facet_wrap(vars(colors))
+```
+
+
+```{r}
+model_info %>% 
+  ggplot(aes(fct_reorder(model, colors), collision)) + 
+  geom_point(aes(color=colors)) +
+  geom_errorbar(aes(ymin = collision.down, ymax = collision.up)) + 
+  geom_hline(aes(yintercept = 0), color="red") + 
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+
+model_info %>% 
+  ggplot(aes(fct_reorder(model, desc(colors)), collision)) + 
+  geom_point() +
+  geom_errorbar(aes(ymin = collision.down, ymax = collision.up)) + 
+  geom_hline(aes(yintercept = 0), color="red") + 
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
+  facet_wrap(vars(colors))
+```
+
+
+```{r}
+model_info %>% 
+  ggplot(aes(fct_reorder(model, colors), coding)) + 
+  geom_point(aes(color=colors)) +
+  geom_errorbar(aes(ymin = coding.down, ymax = coding.up)) + 
+  geom_hline(aes(yintercept = 0), color="red") + 
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+
+model_info %>% 
+  ggplot(aes(fct_reorder(model, desc(colors)), coding)) + 
+  geom_point() +
+  geom_errorbar(aes(ymin = coding.down, ymax = coding.up)) + 
+  geom_hline(aes(yintercept = 0), color="red") + 
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
+  facet_wrap(vars(colors))
+```
+
+
+```{r}
+model_info %>% 
+  ggplot(aes(fct_reorder(model, colors), reads)) + 
+  geom_point(aes(color=colors)) +
+  geom_errorbar(aes(ymin = reads.down, ymax = reads.up)) + 
+  geom_hline(aes(yintercept = 0), color="red") + 
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+
+model_info %>% 
+  ggplot(aes(fct_reorder(model, desc(colors)), reads)) + 
+  geom_point() +
+  geom_errorbar(aes(ymin = reads.down, ymax = reads.up)) + 
+  geom_hline(aes(yintercept = 0), color="red") + 
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
+  facet_wrap(vars(colors))
+```
+
+
+## Variance
+
+```{r}
+v = 0.01464228
+
+# base.typeCG                      0.9918083  0.0436324  22.731  < 2e-16 ***
+1-0.002040859/v
+exp(0.9918083)
+
+# rep.fitted.dip                   0.2441017  0.1814062   1.346 0.178429    
+1-0.01460047/v
+exp(0.2441017)
+
+# reads                            0.0003922  0.0001160   3.380 0.000724 ***
+1-0.01464228/v
+exp(0.0003922)
+
+# codingTRUE                      -0.8364834  0.3726488  -2.245 0.024788 *  
+1-0.01452837/v
+exp(-0.8364834)
+
+# annotatedTRUE                    0.0791154  0.1816050   0.436 0.663094    
+1-0.01463792/v
+exp(0.0791154)
+
+# usefulishTRUE                    1.2183441  0.2645069   4.606 4.10e-06 ***
+1-0.01420625/v
+exp(1.2183441)
+
+# collision.dipTRUE               -0.4615400  0.1489498  -3.099 0.001944 ** 
+1-0.01464228/v
+exp(-0.4615400)
+
+# reads:codingTRUE                -0.0004127  0.0001184  -3.486 0.000491 ***
+1-0.01424838/v
+exp(-0.0004127)
+
+# rep.fitted.dip:reads            -0.0004074  0.0001223  -3.331 0.000865 ***
+1-0.01464228/v
+exp(-0.0004074)
+
+# codingTRUE:collision.dipTRUE     0.6152270  0.1558002   3.949 7.85e-05 ***
+1-0.01424403/v
+exp(0.6152270)
+
+# rep.fitted.dip:codingTRUE       -0.5891687  0.2046770  -2.879 0.003995 ** 
+1-0.014451/v
+exp(-0.5891687)
+
+# rep.fitted.dip:reads:codingTRUE  0.0004261  0.0001233   3.456 0.000548 ***
+1-0.01423595/v
+exp(0.0004261)
+```
+
+
+
+
+
+

@@ -1,0 +1,178 @@
+---
+title: "Analysis"
+author: "Rutuja"
+date: "2025-01-28"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+```
+
+
+```{r}
+d <- read.delim("clean/the_great_big_data_file.txt", header=TRUE, sep=" ")
+```
+
+Quick checks:  
+
+```{r}
+d %>% summarize(sum(hap.wt), sum(dip.wt), sum(sharp.hap.SNM), sum(sharp.dip.SNM), sum(sharp.hap.INDEL), sum(sharp.dip.INDEL), sum(zhu.dip), sum(rep.fitted.hap), sum(rep.fitted.dip), sum(rep.sign.hap), sum(rep.sign.dip), sum(reads), sum(tr.sign), sum(coding), sum(annotated), sum(features), sum(usefulish), sum(collision.hap), sum(collision.dip))
+```
+
+
+
+```{r}
+d$dip.pow.scaled <- scale(d$dip.wt, scale=FALSE)
+
+net.plus<-read.delim("data/GSM617027_WT_NC_plus.txt",h=F,sep=" ")
+names(net.plus)<-c("pos","value")
+prev<-c(0,net.plus$pos[1:(nrow(net.plus)-1)])
+diff<-sign(net.plus$pos-prev)
+net.plus$chr<-NA
+cut.rows<-c(1,which(diff<0),nrow(net.plus))
+for(i in c(1:16)){net.plus$chr[cut.rows[i]:cut.rows[i+1]]<-i}
+
+net.minus<-read.delim("data/GSM617027_WT_NC_minus.txt",h=F,sep=" ")
+names(net.minus)<-c("pos","value")
+prev<-c(0,net.minus$pos[1:(nrow(net.minus)-1)])
+diff<-sign(net.minus$pos-prev)
+net.minus$chr<-NA
+cut.rows<-c(1,which(diff<0),nrow(net.minus))
+for(i in c(1:16)){net.minus$chr[cut.rows[i]:cut.rows[i+1]]<-i}
+
+rm(diff, prev, cut.rows)
+
+val.plus <- min(net.plus$value)
+val.minus <- min(net.minus$value)
+
+# re-scale y so that it is an integer (assumes lowest non-zero value of y corresponds to 1 read per 10^7 sequences)
+net.plus$reads<-net.plus$value/val.plus
+net.minus$reads<-net.minus$value/val.minus
+
+net.plus$reads.plus <- net.plus$reads
+net.minus$reads.minus <- net.minus$reads
+net.plus <- net.plus[, c("pos", "chr", "reads.plus")]
+net.minus <- net.minus[, c("pos", "chr", "reads.minus")]
+
+net <- merge(net.plus, net.minus, all=TRUE, by=c("pos", "chr"))
+rm(net.plus, net.minus)
+
+net$reads.plus <- replace(net$reads.plus, is.na(net$reads.plus), 0)
+net$reads.minus <- replace(net$reads.minus, is.na(net$reads.minus), 0)
+net$stops = net$reads.plus + net$reads.minus
+net <- net[, c("pos", "chr", "stops")]
+
+d <- merge(d, net, all.x=TRUE, by=c("pos", "chr"))
+d$stops <- replace(d$stops, is.na(d$stops), 0)
+head(d)
+```
+
+
+```{r}
+d[(d$reads!=0) & (d$stops!=0),][seq(0, 4544819, 100),] %>% ggplot() + geom_point(aes(x=stops, y=reads, color=base.type)) + scale_x_log10() + scale_y_log10()
+
+d[(d$reads!=0) & (d$stops!=0),][seq(0, 4544819, 100),] %>% ggplot() + geom_point(aes(x=stops, y=reads, color=base.type)) + facet_grid(vars(coding)) + scale_x_log10() + scale_y_log10()
+
+d[(d$reads!=0) & (d$stops!=0),][seq(0, 4544819, 100),] %>% ggplot() + geom_density(aes(x=reads)) + facet_grid(vars(coding)) + scale_x_log10() 
+
+d[(d$reads!=0) & (d$stops!=0),][seq(0, 4544819, 100),] %>% ggplot() + geom_density(aes(x=stops)) + facet_grid(vars(coding)) + scale_x_log10() 
+
+d[(d$reads!=0) & (d$stops!=0),][seq(0, 4566819, 100),] %>% ggplot() + geom_density(aes(x=rep.fitted.dip)) + facet_grid(vars(coding)) + scale_x_log10() 
+
+d[(d$reads!=0) & (d$stops!=0),][seq(0, 4544819, 100),] %>% ggplot() + geom_density(aes(x=reads), color='blue') + geom_density(aes(x=stops), color='red') + facet_grid(vars(coding)) + scale_x_log10() 
+
+
+d[(d$reads!=0) & (d$stops!=0),][seq(0, 4513276, 100),] %>% ggplot() + geom_point(aes(y=stops/reads, x=stops, color=base.type)) + scale_x_log10() + scale_y_log10()
+
+d[(d$rep.fitted.dip!=0) & (d$stops!=0),][seq(0, 4566819, 100),] %>% ggplot() + geom_point(aes(x=stops, y=rep.fitted.dip, color=base.type)) + scale_x_log10() 
+
+d[(d$rep.fitted.dip!=0) & (d$stops!=0),][seq(0, 4566819, 100),] %>% ggplot() + geom_point(aes(x=stops, y=rep.fitted.dip, color=base.type)) + scale_x_log10() 
+
+d[(d$stops!=0),][seq(0, 4566819, 100),] %>% ggplot() + geom_density(aes(x=stops)) + facet_grid(vars(collision.dip)) + scale_x_log10() 
+
+d[(d$stops!=0),][seq(0, 4566819, 100),] %>% ggplot() + geom_density(aes(x=stops)) + facet_grid(vars(base.type)) + scale_x_log10() 
+
+d[(d$stops!=0),][seq(0, 4566819, 100),] %>% ggplot() + geom_violin(aes(y=stops, x=base.type, fill=base.type)) + scale_y_log10() 
+
+
+d[(d$rep.fitted.dip!=0) & (d$reads!=0),][seq(0, 11050142, 100),] %>% ggplot() + geom_point(aes(y=reads, x=rep.fitted.dip, color=base.type)) + scale_y_log10()
+
+d[seq(0, 12071327, 100),] %>% ggplot() + geom_violin(aes(y=rep.fitted.dip, x=base.type, fill=base.type)) 
+
+d[seq(0, 12071327, 100),] %>% ggplot() + geom_violin(aes(y=rep.fitted.dip, x=coding, fill=coding)) 
+
+d[seq(0, 12071327, 100),] %>% ggplot() + geom_violin(aes(y=rep.fitted.dip, x=collision.dip, fill=collision.dip)) 
+```
+
+```{r}
+rm(d, net)
+```
+
+
+
+```{r}
+model_info <- data.frame(
+  model = c("sharp.etal.dip.SNM", "zhu.dip", "sharp.dip.SNM", "jacob.dip.SNM", "mut.SNM"),
+  pow = c(4.843e-06, 5.843e-06, 4.889e-06, 2.738e-06, 2.789e-06),
+  pow.err = c(1.406e-06, 9.619e-07, 1.249e-06, 2.627e-06, 1.057e-06 ),
+  base = c( 1.094e+00, 8.171e-01, 1.084e+00, 1.012e+00, 9.590e-01),
+  base.err = c(6.856e-02, 6.869e-02, 6.090e-02, 1.211e-01, 4.846e-02),
+  rep = c(-1.766e-01, -1.986e-01, -1.561e-01, -8.268e-02, -2.020e-01),
+  rep.err = c(1.140e-01, 1.183e-01, 1.013e-01, 2.021e-01, 8.206e-02),
+  collision = c( 1.400e-01, 1.650e-02, 1.241e-01, 7.127e-02, 1.424e-01),
+  collision.err = c(6.543e-02, 6.828e-02, 5.821e-02, 1.171e-01, 6.541e-02)
+  
+)
+
+rownames(model_info) <- model_info$model
+
+model_info$rep.up <- model_info$rep + qt(0.025, 623884-5, lower.tail = FALSE)*model_info$rep.err
+
+model_info$rep.down <- model_info$rep - qt(0.025, 623884-5, lower.tail = FALSE)*model_info$rep.err
+
+model_info["mut.SNM", "rep.up"]<- model_info["mut.SNM", "rep"] + qt(0.025, 3*623884-5, lower.tail = FALSE)*model_info["mut.SNM", "rep.err"]
+
+model_info["mut.SNM", "rep.down"]<- model_info["mut.SNM", "rep"] - qt(0.025, 3*623884-5, lower.tail = FALSE)*model_info["mut.SNM", "rep.err"]
+
+model_info %>% 
+  ggplot(aes(model, rep)) + 
+  geom_point() +
+  geom_errorbar(aes(ymin = rep.down, ymax = rep.up)) + 
+  geom_hline(aes(yintercept = 0), color="red")
+
+
+model_info$collision.up <- model_info$collision + qt(0.025, 623884-5, lower.tail = FALSE)*model_info$collision.err
+
+model_info$collision.down <- model_info$collision - qt(0.025, 623884-5, lower.tail = FALSE)*model_info$collision.err
+
+model_info["mut.SNM", "collision.up"]<- model_info["mut.SNM", "collision"] + qt(0.025, 3*623884-5, lower.tail = FALSE)*model_info["mut.SNM", "collision.err"]
+
+model_info["mut.SNM", "collision.down"]<- model_info["mut.SNM", "collision"] - qt(0.025, 3*623884-5, lower.tail = FALSE)*model_info["mut.SNM", "collision.err"]
+
+
+model_info %>% 
+  ggplot(aes(model, collision)) + 
+  geom_point() +
+  geom_errorbar(aes(ymin = collision.down, ymax = collision.up)) + 
+  geom_hline(aes(yintercept = 0), color="red")
+```
+
+```{r}
+test.x1 <- sample(seq(1, 100, 1))
+test.x2 <- sample(seq(1, 100, 1))
+test.y <- 2*test.x1 + 5*test.x2 + rnorm(100, 0, 0.1)
+
+mod <- glm(test.y ~ test.x1 + test.x2)
+summary(mod)
+confint(mod)
+str(mod)
+```
+
+
+
+

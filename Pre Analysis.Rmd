@@ -1,0 +1,446 @@
+---
+title: "Getting ready for analysis"
+author: "Rutuja"
+date: "2025-01-13"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+# Imports
+library(tidyverse)
+library(ggplot2)
+library(stringr)
+```
+
+```{r}
+# Key for replacing chromosome names later
+
+chr_names<-c("chrI","chrII","chrIII","chrIV","chrV","chrVI","chrVII","chrVIII", "chrIX","chrX","chrXI","chrXII","chrXIII","chrXIV","chrXV","chrXVI")
+
+chr_names2<-c("chr01","chr02","chr03","chr04","chr05","chr06","chr07","chr08","chr09","chr10","chr11","chr12","chr13","chr14","chr15","chr16")
+```
+
+Mutations
+
+```{r}
+load("/data/Sharp_etal_variants")
+
+mut <- rv %>% select(CHROM, POS, TYPE, ploidy, HET, MAT, RDH)
+mut$chr <- sapply(mut$CHROM,function(i){which(chr_names2==i)})
+mut$pos <- mut$POS
+mut$type <- mut$TYPE
+mut <- mut %>% filter(RDH == "wt")
+
+mut$hap.SNM <- ifelse((mut$ploidy == "hap") & ((mut$type == "SNP") | (mut$type == "MNM")), TRUE, FALSE)
+mut$hap.INDEL <- ifelse((mut$ploidy == "hap") & (mut$type == "INDEL"), TRUE, FALSE)
+mut$dip.SNM <- ifelse((mut$ploidy == "dip") & ((mut$type == "SNP") | (mut$type == "MNM")), TRUE, FALSE)
+mut$dip.INDEL <- ifelse((mut$ploidy == "dip") & (mut$type == "INDEL"), TRUE, FALSE)
+
+mut$SNM <- ifelse(((mut$type == "SNP") | (mut$type == "MNM")), TRUE, FALSE)
+# mut$SNM <- mut$hap.SNM + mut$dip.SNM
+mut$INDEL <- ifelse((mut$type == "INDEL"), TRUE, FALSE)
+mut$type <- ifelse(((mut$type == "SNP") | (mut$type == "MNM")), "SNM", "INDEL")
+
+mut$experiment <- "sharp"
+mut$PI <- "sharp"
+
+
+mut <- mut %>% select(chr, pos, type, ploidy, hap.SNM, dip.SNM, hap.INDEL, dip.INDEL, SNM, INDEL, experiment, PI)
+head(mut)
+str(mut)
+```
+
+```{r}
+zhu <- read.delim("/data/Zhu_SNP_data.txt")
+
+zhu$type <- "SNM"
+zhu$ploidy <- "dip"
+
+zhu$hap.SNM <- FALSE
+zhu$hap.INDEL <- FALSE
+zhu$dip.SNM <- TRUE
+zhu$dip.INDEL <- FALSE
+
+zhu$SNM <- TRUE
+# zhu$SNM <- zhu$hap.SNM + zhu$dip.SNM
+zhu$INDEL <- FALSE
+
+zhu$experiment <- "zhu"
+zhu$PI <- "zhu"
+
+
+zhu <- zhu %>% select(chr, pos, type, ploidy, hap.SNM, dip.SNM, hap.INDEL, dip.INDEL, SNM, INDEL, experiment, PI)
+
+head(zhu)
+str(zhu)
+```
+
+Jacob data REV+
+
+```{r}
+jacob <- read.csv("/data/REV1_variant_list.csv", header=TRUE)
+jacob <- jacob[,c("POS", "CHROM", "Code", "VAR_TYPE")]
+jacob <- jacob %>% filter((Code == "SLY012") | (Code == "SLY053"))
+
+jacob$chr <- jacob$CHROM
+jacob$pos <- jacob$POS
+jacob$type <- ifelse((jacob$VAR_TYPE == "SNP"), "SNM", "INDEL")
+
+jacob$hap.SNM <- ifelse((jacob$Code == "SLY012") & (jacob$VAR_TYPE == "SNP"), TRUE, FALSE)
+jacob$hap.INDEL <- ifelse((jacob$Code == "SLY012") & (jacob$VAR_TYPE == "INDEL"), TRUE, FALSE)
+jacob$dip.SNM <- ifelse((jacob$Code == "SLY053") & (jacob$VAR_TYPE == "SNP"), TRUE, FALSE)
+jacob$dip.INDEL <- ifelse((jacob$Code == "SLY053") & (jacob$VAR_TYPE == "INDEL"), TRUE, FALSE)
+
+jacob$SNM <- ifelse((jacob$VAR_TYPE == "SNP"), TRUE, FALSE)
+jacob$INDEL <- ifelse((jacob$VAR_TYPE == "INDEL"), TRUE, FALSE)
+jacob$ploidy <- ifelse((jacob$Code == "SLY012"), "hap", "dip")
+
+jacob$experiment <- "jacob"
+jacob$PI <- "sharp"
+
+jacob <- jacob %>% select(chr, pos, type, ploidy, hap.SNM, dip.SNM, hap.INDEL, dip.INDEL, SNM, INDEL, experiment, PI)
+head(jacob)
+str(jacob)
+```
+
+Liu and Zhang environments study
+
+```{r}
+liu1 <- read.csv("/outs/clean_liu1.csv", header=TRUE)
+
+liu1$type <- ifelse((liu1$liu1.SNM), "SNM", "INDEL")
+
+liu1$hap.SNM <- FALSE
+liu1$hap.INDEL <- FALSE
+liu1$dip.SNM <- liu1$liu1.SNM
+liu1$dip.INDEL <- liu1$liu1.INDEL
+
+liu1$SNM <- liu1$liu1.SNM
+# liu1$SNM <- liu1$hap.SNM + liu1$dip.SNM
+liu1$INDEL <- liu1$liu1.INDEL
+liu1$ploidy <- "dip"
+
+liu1$experiment <- "liu.env"
+liu1$PI <- "liu"
+
+liu1 <- liu1 %>% select(chr, pos, type, ploidy, hap.SNM, dip.SNM, hap.INDEL, dip.INDEL, SNM, INDEL, experiment, PI)
+head(liu1)
+str(liu1)
+```
+
+Liu and Zhang 2nd order MA
+
+```{r}
+liu2 <- read.csv("/outs/clean_liu2.csv", header=TRUE)
+
+liu2$type <- ifelse((liu2$liu2.SNM), "SNM", "INDEL")
+
+liu2$hap.SNM <- ifelse((liu2$strain == 4741) & (liu2$type == "SNM"), TRUE, FALSE)
+liu2$hap.INDEL <- ifelse((liu2$strain == 4741) & (liu2$type == "INDEL"), TRUE, FALSE)
+liu2$dip.SNM <- ifelse((liu2$strain == 4743) & (liu2$type == "SNM"), TRUE, FALSE)
+liu2$dip.INDEL <- ifelse((liu2$strain == 4743) & (liu2$type == "INDEL"), TRUE, FALSE)
+
+liu2$SNM <- liu2$liu2.SNM
+# liu2$SNM <- liu2$hap.SNM + liu2$dip.SNM
+liu2$INDEL <- liu2$liu2.INDEL
+liu2$ploidy <- ifelse((liu2$strain == 4741), "hap", "dip")
+
+liu2$experiment <- "liu.MA2"
+liu2$PI <- "liu"
+
+liu2 <- liu2 %>% select(chr, pos, type, ploidy, hap.SNM, dip.SNM, hap.INDEL, dip.INDEL, SNM, INDEL, experiment, PI)
+head(liu2)
+str(liu2)
+```
+
+Serero
+
+```{r}
+serero <- read.csv("/outs/clean_serero.csv", header=TRUE)
+
+serero$type <- "SNM"
+
+serero$hap.SNM <- serero$serero.SNM
+serero$hap.INDEL <- FALSE
+serero$dip.SNM <- FALSE
+serero$dip.INDEL <- FALSE
+
+serero$SNM <- TRUE
+# serero$SNM <- serero$hap.SNM + serero$dip.SNM
+serero$INDEL <- FALSE
+serero$ploidy <- "hap"
+
+serero$experiment <- "serero"
+serero$PI <- "serero"
+
+serero <- serero %>% select(chr, pos, type, ploidy, hap.SNM, dip.SNM, hap.INDEL, dip.INDEL, SNM, INDEL, experiment, PI)
+head(serero)
+str(serero)
+```
+
+
+Now making the big mutation data frame
+
+```{r}
+mutations <- bind_rows(list(mut, jacob, zhu, liu1, liu2, serero))
+```
+
+Checking for duplicates
+
+```{r}
+mutations %>% group_by(chr, pos) %>% summarize(counts = n()) %>% filter(counts>1)
+mutations %>% filter(chr == 4) %>% filter(pos == 149113)
+mutations %>% filter(chr == 14) %>% filter(pos == 384458)
+mutations <- mutations %>% filter(!((chr==4)&(pos==149113)&(experiment=="jacob")))
+mutations <- mutations[!duplicated(mutations),]
+```
+
+
+Power to detect mutations. This file also has the entire reference genome.
+
+
+```{r}
+d <- read.delim("/data/power_by_site_with_bases.txt",h=F)
+names(d) <- c("chr_name","pos","hap.wt","hap.del","dip.wt","dip.del","ref")
+d$chr <- sapply(d$chr, function(i){which(chr_names2 == i)})
+d <- d %>% select(chr, pos, hap.wt, dip.wt, ref)
+d$base.type <- ifelse(d$ref %in% c("C", "G"), "CG", "AT")
+
+
+d$ref.up <- c("N",d$ref[1:(nrow(d)-1)])
+d$ref.down <- c(d$ref[2:(nrow(d))],"N")
+d$up.pair <- paste(d$ref.up, d$ref, sep="")
+d$down.pair <- paste(d$ref, d$ref.down, sep="")
+d$triplet <- paste(d$ref.up, d$ref, d$ref.down, sep="")
+
+d$CG <- (d$up.pair == "CG") | (d$down.pair == "CG") 
+d$base.type <- ifelse(d$CG, "diNT", d$base.type)
+d <- d %>% select(chr, pos, hap.wt, dip.wt, ref, base.type, triplet)
+
+d$dip.pow.scaled <- scale(d$dip.wt, scale=FALSE)
+d$hap.pow.scaled <- scale(d$hap.wt, scale=FALSE)
+```
+
+
+```{r}
+d <- d %>% left_join(mutations, by = c("chr", "pos"))
+head(d)
+
+d$type <- replace_na(d$type, NA) 
+d$ploidy <- replace_na(d$ploidy, NA)
+
+d$hap.SNM <- replace_na(d$hap.SNM, FALSE)
+d$dip.SNM <- replace_na(d$dip.SNM, FALSE)
+d$hap.INDEL <- replace_na(d$hap.INDEL, FALSE) 
+d$dip.INDEL <- replace_na(d$dip.INDEL, FALSE) 
+d$SNM <- replace_na(d$SNM, FALSE) 
+d$INDEL <- replace_na(d$INDEL, FALSE) 
+
+d$experiment <- replace_na(d$experiment, NA) 
+d$PI <- replace_na(d$PI, NA)
+
+head(d)
+```
+
+
+
+Considering other known factors.
+
+Starting with replication.
+
+```{r}
+rep <- read.delim("/outs/cleaner_rep.csv", sep = ",")
+rep$chr <- rep$chr_num
+head(rep)
+```
+
+```{r}
+d <- d %>% left_join(rep[, c("chr", "pos", "rep.fitted.hap", "rep.fitted.dip", "rep.sign.hap", "rep.sign.dip")])
+rm(rep)
+
+d$rep.fitted.hap <- replace_na(d$rep.fitted.hap, 1)
+d$rep.fitted.dip <- replace_na(d$rep.fitted.dip, 1)
+d$rep.sign.hap <- replace_na(d$rep.sign.hap, 0)
+d$rep.sign.dip <- replace_na(d$rep.sign.dip, 0)
+```
+
+```{r}
+head(d)
+```
+
+
+Now time for the actual transcription data.
+
+```{r}
+net <- read.delim("/outs/big_processed.txt", sep = ",")
+table(net$coding)
+net$coding <- as.logical(net$coding)
+net$annotated <- as.logical(net$annotated)
+net$features <- as.logical(net$features)
+net$usefulish <- as.logical(net$usefulish)
+table(net$coding)
+head(net)
+```
+
+```{r}
+plus <- net %>% filter(strand == "+")
+minus <- net %>% filter(strand == "-")
+
+net <- full_join(plus, minus, by=c("chr", "pos"))
+net$reads.x <- replace_na(net$reads.x, 0)
+net$reads.y <- replace_na(net$reads.y, 0)
+net$transcripts <- net$reads.x + net$reads.y
+
+net$coding.x <- replace_na(net$coding.x, FALSE)
+net$coding.y <- replace_na(net$coding.y, FALSE)
+net$protein <- net$coding.x | net$coding.y
+
+net$annotated.x <- replace_na(net$annotated.x, FALSE)
+net$annotated.y <- replace_na(net$annotated.y, FALSE)
+net$annotated <- net$annotated.x | net$annotated.y
+
+net$features.x <- replace_na(net$features.x, FALSE)
+net$features.y <- replace_na(net$features.y, FALSE)
+net$features <- net$features.x | net$features.y
+
+net$usefulish.x <- replace_na(net$usefulish.x, FALSE)
+net$usefulish.y <- replace_na(net$usefulish.y, FALSE)
+net$coding <- net$usefulish.x | net$usefulish.y
+
+net$types <- paste(net$types.x, net$types.y)
+
+net$tr.sign <- ifelse(net$reads.x >= net$reads.y, 1, -1)
+
+net$flag.x <- as.logical(net$flag.x)
+net$flag.y <- as.logical(net$flag.y)
+net$flag.x <- replace_na(net$flag.x, FALSE)
+net$flag.y <- replace_na(net$flag.y, FALSE)
+net$flag <- net$flag.x | net$flag.y
+
+net <- net %>% select(chr, pos, transcripts, tr.sign, protein, annotated, features, coding, types, flag)
+d <- d %>% left_join(net, by=c("chr", "pos"))
+
+d$transcripts <- replace_na(d$transcripts, 0)
+d$tr.sign <- replace_na(d$tr.sign, 0)
+d$coding <- replace_na(d$coding, FALSE)
+d$annotated <- replace_na(d$annotated, FALSE)
+d$features <- replace_na(d$features, FALSE)
+d$protein <- replace_na(d$protein, FALSE)
+
+head(d)
+```
+
+```{r}
+rm(plus, minus, net)
+```
+
+
+Collisions
+
+```{r}
+d$collision.hap = (d$rep.sign.hap * d$tr.sign) > 0
+d$collision.dip = (d$rep.sign.dip * d$tr.sign) > 0
+head(d)
+```
+
+
+```{r}
+# d %>% ggplot() +
+#   geom_histogram(aes(x=reads))
+```
+
+
+```{r}
+net.plus<-read.delim("/data/GSM617027_WT_NC_plus.txt",h=F,sep=" ")
+names(net.plus)<-c("pos","value")
+prev<-c(0,net.plus$pos[1:(nrow(net.plus)-1)])
+diff<-sign(net.plus$pos-prev)
+net.plus$chr<-NA
+cut.rows<-c(1,which(diff<0),nrow(net.plus))
+for(i in c(1:16)){net.plus$chr[cut.rows[i]:cut.rows[i+1]]<-i}
+
+net.minus<-read.delim("data/GSM617027_WT_NC_minus.txt",h=F,sep=" ")
+names(net.minus)<-c("pos","value")
+prev<-c(0,net.minus$pos[1:(nrow(net.minus)-1)])
+diff<-sign(net.minus$pos-prev)
+net.minus$chr<-NA
+cut.rows<-c(1,which(diff<0),nrow(net.minus))
+for(i in c(1:16)){net.minus$chr[cut.rows[i]:cut.rows[i+1]]<-i}
+
+rm(diff, prev, cut.rows)
+
+val.plus <- min(net.plus$value)
+val.minus <- min(net.minus$value)
+
+# re-scale y so that it is an integer (assumes lowest non-zero value of y corresponds to 1 read per 10^7 sequences)
+net.plus$reads<-net.plus$value/val.plus
+net.minus$reads<-net.minus$value/val.minus
+
+net.plus$reads.plus <- net.plus$reads
+net.minus$reads.minus <- net.minus$reads
+net.plus <- net.plus[, c("pos", "chr", "reads.plus")]
+net.minus <- net.minus[, c("pos", "chr", "reads.minus")]
+
+net <- merge(net.plus, net.minus, all=TRUE, by=c("pos", "chr"))
+rm(net.plus, net.minus)
+
+net$reads.plus <- replace(net$reads.plus, is.na(net$reads.plus), 0)
+net$reads.minus <- replace(net$reads.minus, is.na(net$reads.minus), 0)
+net$stops = net$reads.plus + net$reads.minus
+net <- net[, c("pos", "chr", "stops")]
+
+# d <- merge(d, net, all.x=TRUE, by=c("pos", "chr"))
+d <- d %>% left_join(net, by=c("chr", "pos"))
+d$stops <- replace(d$stops, is.na(d$stops), 0)
+d$flag <- replace(d$flag, is.na(d$flag), FALSE)
+head(d)
+```
+
+```{r}
+d <- d %>% filter(!flag)
+```
+
+
+```{r}
+write.table(d, "/outs/the_greater_big_data_file.txt", row.names=FALSE)
+```
+
+
+```{r}
+# d1 <- d
+# d1$power <- d1$hap.wt
+# d1$SNM <- d1$hap.SNM
+# d1$INDEL <- d1$hap.INDEL
+# d1$rep.fitted <- d1$rep.fitted.hap
+# d1$rep.sign <- d1$rep.sign.hap
+# d1$collision <- d1$collision.hap
+# d1$ploidy <- "hap"
+# 
+# d1 <- d1 %>% select(-hap.wt, -dip.wt, -dip.pow.scaled, -hap.pow.scaled, -hap.SNM, -dip.SNM, -hap.INDEL, -dip.INDEL, -rep.fitted.hap, -rep.fitted.dip, -rep.sign.hap, -rep.sign.dip, -collision.hap, -collision.dip)
+# 
+# d2 <- d
+# d2$power <- d2$dip.wt
+# d2$SNM <- d2$dip.SNM
+# d2$INDEL <- d2$dip.INDEL
+# d2$rep.fitted <- d2$rep.fitted.dip
+# d2$rep.sign <- d2$rep.sign.dip
+# d2$collision <- d2$collision.dip
+# d2$ploidy <- "dip"
+# 
+# d2 <- d2 %>% select(-hap.wt, -dip.wt, -dip.pow.scaled, -hap.pow.scaled, -hap.SNM, -dip.SNM, -hap.INDEL, -dip.INDEL, -rep.fitted.hap, -rep.fitted.dip, -rep.sign.hap, -rep.sign.dip, -collision.hap, -collision.dip)
+# 
+# d <- bind_rows(d1, d2)
+# 
+# d$pow.scaled <- scale(d$power, scale=FALSE)
+```
+
+
+```{r}
+# write.table(d, "clean/the_greatest_big_data_file.txt", row.names=FALSE)
+```
+
+
