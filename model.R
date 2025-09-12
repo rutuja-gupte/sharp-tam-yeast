@@ -11,52 +11,106 @@ d <- d %>% filter(transcripts < 15)
 
 head(d)
 
-mod <- glm(SNM ~ 
-             base.type +
-             collision +
-             transcripts +
-             rep.fitted +
-             protein +
-             base.type * collision + 
-             transcripts * collision + 
-             collision * rep.fitted + 
-             rep.fitted * protein, 
-           d,
-           family="binomial")
-
-print(summary(mod))
-
-mod <- glm(SNM ~ 
-             triplet +
-             collision +
-             transcripts +
-             rep.fitted +
-             protein +
-             base.type * collision + 
-             transcripts * collision + 
-             collision * rep.fitted + 
-             rep.fitted * protein, 
-           d,
-           family="binomial")
-
-print(summary(mod))
+# mod <- glm(SNM ~ 
+#              base.type +
+#              collision +
+#              transcripts +
+#              rep.fitted +
+#              protein +
+#              base.type * collision +
+#              transcripts * collision +
+#              collision * rep.fitted +
+#              rep.fitted * protein +
+#              base.type * transcripts +
+#              base.type * rep.fitted +
+#              base.type * protein +
+#              collision * protein +
+#              transcripts * rep.fitted +
+#              transcripts * protein, d,
+#            family="binomial")
+# 
+# print(summary(mod))
 
 
+# mod <- glm(SNM ~ base.type + collision + transcripts + rep.fitted +
+#              protein + base.type * collision + transcripts * collision +
+#              collision * rep.fitted + rep.fitted * protein, d,
+#            family="binomial")
+# 
+# print(summary(mod))
+# 
+# mod <- glm(SNM ~ 
+#              base.type +
+#              collision +
+#              transcripts +
+#              rep.fitted +
+#              protein +
+#              base.type * collision + 
+#              transcripts * collision + 
+#              collision * rep.fitted + 
+#              rep.fitted * protein, 
+#            d,
+#            family="binomial")
+# 
+# print(summary(mod))
+# 
+# mod <- glm(SNM ~ base.type +
+#              rep.fitted +
+#              protein +
+#              base.type:collision +
+#              collision:transcripts +
+#              base.type:transcripts +
+#              base.type:protein +
+#              transcripts:rep.fitted, 
+#            d,
+#            family="binomial")
+# 
+# print(summary(mod))
+# 
+# mod <- glm(SNM ~ base.type +
+#              rep.fitted +
+#              protein +
+#              base.type*collision +
+#              collision*transcripts +
+#              base.type*transcripts +
+#              base.type*protein +
+#              transcripts*rep.fitted, 
+#            d,
+#            family="binomial")
+# 
+# print(summary(mod))
 
+# mod <- glm(SNM ~ 
+#              triplet +
+#              collision +
+#              transcripts +
+#              rep.fitted +
+#              protein +
+#              base.type * collision + 
+#              transcripts * collision + 
+#              collision * rep.fitted + 
+#              rep.fitted * protein, 
+#            d,
+#            family="binomial")
+# 
+# print(summary(mod))
+# 
+# 
+# 
 library(MASS)
 library(glmnet)
 
 d$transcripts <- scale(d$transcripts, scale=FALSE)
 
-x = model.matrix(SNM ~ 
+x = model.matrix(INDEL ~
                    base.type +
                    collision +
                    transcripts +
                    rep.fitted +
                    protein +
-                   base.type * collision + 
-                   transcripts * collision + 
-                   collision * rep.fitted + 
+                   base.type * collision +
+                   transcripts * collision +
+                   collision * rep.fitted +
                    rep.fitted * protein +
                    base.type * transcripts +
                    base.type * rep.fitted +

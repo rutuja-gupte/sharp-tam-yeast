@@ -1,0 +1,173 @@
+---
+title: "Story"
+author: "Rutuja Gupte"
+date: "2025-09-11"
+output: github_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r}
+library(tidyverse)
+```
+
+```{r}
+print("loading data")
+d <- read.delim("/outs/the_greater_big_data_file.txt", header=TRUE, sep=" ")
+print("loaded data. breathe.")
+
+d$rep.fitted <- (d$rep.fitted.dip + d$rep.fitted.hap)/2
+d$collision <- (d$collision.dip + d$collision.hap)/2
+
+head(d)
+table(d$experiment)
+zhu <- d$SNM==1 & d$experiment=="zhu"
+```
+
+Does transcription affect mutations? This can be tested by checking if mutated regions have a different level of transcription. The stops variable has the raw NET Seq information. Regions that are not transcribed by RNA polymerase II are excluded since we do not have transcription about those regions. 
+
+One of the first such studies was carried out based on the zhu data
+
+```{r}
+mean(d$stops[zhu])
+mean(d$stops[!zhu])
+```
+
+Okay that looks different, but is it though? Let's bootstrap.
+
+```{r}
+B = 100000; # Number of bootstrap replicates.
+replicates = rep(NA,B); # We'll store
+for( i in 1:B ) {
+  # without replacement because we want unique mutations
+  resample = sample(d$stops, 860, replace=FALSE)
+  replicates[i] = mean(resample)
+}
+
+sum(replicates > mean(d$stops[zhu]))/length(replicates)
+```
+
+That study only looked at exons. I can look at protein coding regions.
+
+```{r}
+table(d$experiment[d$protein])
+mean(d$stops[zhu & d$protein])
+mean(d$stops[!(zhu & d$protein)])
+
+distr <- d$stops[d$protein]
+
+B = 10000; # Number of bootstrap replicates.
+replicates = rep(NA,B); # We'll store
+for( i in 1:B ) {
+  # without replacement because we want unique mutations
+  resample = sample(distr, 739, replace=FALSE)
+  replicates[i] = mean(resample)
+}
+
+sum(replicates > mean(d$stops[zhu & d$protein]))/length(replicates)
+```
+
+
+Wow transcription affects mutations. Hold up. There are confounding factors.
+
+```{r}
+ggplot() + 
+  geom_histogram(aes(x=d$stops))
+
+quantile(d$stops)
+quantile(d$transcripts)
+
+
+d <- d %>% filter(transcripts < 15)
+quantile(d$stops)
+quantile(d$transcripts)
+```
+
+Repeating that after some outlier cleanup
+
+```{r}
+zhu <- d$SNM==1 & d$experiment=="zhu"
+
+B = 10000; # Number of bootstrap replicates.
+replicates = rep(NA,B); # We'll store
+for( i in 1:B ) {
+  # without replacement because we want unique mutations
+  resample = sample(d$stops, 860, replace=FALSE)
+  replicates[i] = mean(resample)
+}
+
+sum(replicates > mean(d$stops[zhu]))/length(replicates)
+```
+
+That study only looked at exons. I can look at protein coding regions.
+
+```{r}
+table(d$experiment[d$protein])
+mean(d$stops[zhu & d$protein])
+mean(d$stops[!(zhu & d$protein)])
+
+distr <- d$stops[d$protein]
+
+B = 10000; # Number of bootstrap replicates.
+replicates = rep(NA,B); # We'll store
+for( i in 1:B ) {
+  # without replacement because we want unique mutations
+  resample = sample(distr, 729, replace=FALSE)
+  replicates[i] = mean(resample)
+}
+
+sum(replicates > mean(d$stops[zhu & d$protein]))/length(replicates)
+```
+
+Let's try adding some more data and see what that says
+
+```{r}
+table(d$SNM)
+
+B = 10000; # Number of bootstrap replicates.
+replicates = rep(NA,B); # We'll store
+for( i in 1:B ) {
+  # without replacement because we want unique mutations
+  resample = sample(d$stops, 2953, replace=FALSE)
+  replicates[i] = mean(resample)
+}
+
+sum(replicates > mean(d$stops[d$SNM]))/length(replicates)
+```
+
+Using a different metric for transcription
+
+```{r}
+table(d$SNM)
+
+B = 10000; # Number of bootstrap replicates.
+replicates = rep(NA,B); # We'll store
+for( i in 1:B ) {
+  # without replacement because we want unique mutations
+  resample = sample(d$transcripts, 2953, replace=FALSE)
+  replicates[i] = mean(resample)
+}
+
+sum(replicates > mean(d$transcripts[d$SNM]))/length(replicates)
+```
+
+We might be onto something here. But could just be an artifact.
+
+```{r}
+mod <- glm(SNM ~ stops, d,
+           family="binomial")
+
+print(summary(mod))
+
+mod <- glm(SNM ~ transcripts, d,
+           family="binomial")
+
+print(summary(mod))
+```
+
+
+So was this just an artifact? Maybe. But there is also the possibility of confounding. Let's switch to regression to control for other factors.
+
