@@ -163,7 +163,6 @@ mod <- glm(INDEL ~
 print(summary(mod))
 
 mod <- glm(INDEL ~ 
-             base.type +
              protein +
              rep.fitted, d,
            family="binomial")
@@ -171,14 +170,12 @@ mod <- glm(INDEL ~
 print(summary(mod))
 
 mod <- glm(INDEL ~ 
-             base.type +
              protein*rep.fitted, d,
            family="binomial")
 
 print(summary(mod))
 
 mod <- glm(INDEL ~ 
-             base.type +
              protein*rep.fitted +
              transcripts*protein +
              transcripts*rep.fitted, d,
@@ -187,7 +184,6 @@ mod <- glm(INDEL ~
 print(summary(mod))
 
 mod <- glm(INDEL ~ 
-             base.type +
              collision + 
              protein*rep.fitted +
              transcripts*protein +
@@ -197,7 +193,6 @@ mod <- glm(INDEL ~
 print(summary(mod))
 
 mod <- glm(INDEL ~ 
-             base.type*collision +
              protein*rep.fitted +
              transcripts*protein +
              transcripts*rep.fitted, d,
@@ -207,8 +202,6 @@ print(summary(mod))
 
 
 mod <- glm(INDEL ~ 
-             base.type*collision +
-             base.type*transcripts +
              protein*rep.fitted +
              transcripts*protein +
              transcripts*rep.fitted, d,
@@ -217,8 +210,6 @@ mod <- glm(INDEL ~
 print(summary(mod))
 
 mod <- glm(INDEL ~ 
-             base.type*collision +
-             base.type*transcripts +
              transcripts*collision +
              protein*rep.fitted +
              transcripts*protein +
@@ -226,8 +217,6 @@ mod <- glm(INDEL ~
            family="binomial")
 
 mod <- glm(INDEL ~ 
-             base.type*collision +
-             base.type*transcripts +
              transcripts*collision +
              rep.fitted*collision +
              protein*rep.fitted +

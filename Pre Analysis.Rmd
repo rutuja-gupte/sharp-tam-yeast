@@ -259,7 +259,7 @@ head(rep)
 ```
 
 ```{r}
-d <- d %>% left_join(rep[, c("chr", "pos", "rep.fitted.hap", "rep.fitted.dip", "rep.sign.hap", "rep.sign.dip")])
+d <- d %>% left_join(rep[, c("chr", "pos", "rep.fitted.hap", "rep.fitted.dip", "rep.sign.hap", "rep.sign.dip")], by=c("chr", "pos"))
 rm(rep)
 
 d$rep.fitted.hap <- replace_na(d$rep.fitted.hap, 1)
@@ -408,39 +408,3 @@ d <- d %>% filter(!flag)
 ```{r}
 write.table(d, "/outs/the_greater_big_data_file.txt", row.names=FALSE)
 ```
-
-
-```{r}
-# d1 <- d
-# d1$power <- d1$hap.wt
-# d1$SNM <- d1$hap.SNM
-# d1$INDEL <- d1$hap.INDEL
-# d1$rep.fitted <- d1$rep.fitted.hap
-# d1$rep.sign <- d1$rep.sign.hap
-# d1$collision <- d1$collision.hap
-# d1$ploidy <- "hap"
-# 
-# d1 <- d1 %>% select(-hap.wt, -dip.wt, -dip.pow.scaled, -hap.pow.scaled, -hap.SNM, -dip.SNM, -hap.INDEL, -dip.INDEL, -rep.fitted.hap, -rep.fitted.dip, -rep.sign.hap, -rep.sign.dip, -collision.hap, -collision.dip)
-# 
-# d2 <- d
-# d2$power <- d2$dip.wt
-# d2$SNM <- d2$dip.SNM
-# d2$INDEL <- d2$dip.INDEL
-# d2$rep.fitted <- d2$rep.fitted.dip
-# d2$rep.sign <- d2$rep.sign.dip
-# d2$collision <- d2$collision.dip
-# d2$ploidy <- "dip"
-# 
-# d2 <- d2 %>% select(-hap.wt, -dip.wt, -dip.pow.scaled, -hap.pow.scaled, -hap.SNM, -dip.SNM, -hap.INDEL, -dip.INDEL, -rep.fitted.hap, -rep.fitted.dip, -rep.sign.hap, -rep.sign.dip, -collision.hap, -collision.dip)
-# 
-# d <- bind_rows(d1, d2)
-# 
-# d$pow.scaled <- scale(d$power, scale=FALSE)
-```
-
-
-```{r}
-# write.table(d, "clean/the_greatest_big_data_file.txt", row.names=FALSE)
-```
-
-

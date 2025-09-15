@@ -92,30 +92,6 @@ f$chr <- as.numeric(sapply(f$seqid, function(i){which(chr_names == i)}))
 f <- f %>% select(chr, name, type, start, end, strand, orf_class, source, attributes)
 f <- f %>% filter(type != '')
 f2 <- f
-# f_ele <- c("region"=FALSE, 
-#            "telomere"=FALSE, 
-#            "origin_of_replication"=FALSE, 
-#            "gene"=TRUE, 
-#            "mRNA"=FALSE, 
-#            "exon"=FALSE, 
-#            "CDS"=FALSE, 
-#            "long_terminal_repeat"=FALSE, 
-#            "regulatory_region"=TRUE, # uORF
-#            "ncRNA"=FALSE, 
-#            "tRNA"=FALSE, 
-#            "snoRNA"=FALSE, 
-#            "centromere"=FALSE, 
-#            "mobile_genetic_element"=FALSE, 
-#            "pseudogene"=FALSE, 
-#            "antisense_RNA"=FALSE, 
-#            "telomerase_RNA"=FALSE, 
-#            "sequence_feature"=FALSE, 
-#            "snRNA"=FALSE, 
-#            "RNase_P_RNA"=FALSE, 
-#            "SRP_RNA"=FALSE, 
-#            "transcript"=FALSE, # rrna
-#            "rRNA"=FALSE, # rrna
-#            "RNase_MRP_RNA"=FALSE)
 f_ele <- c("chromosome"=FALSE,
            "telomere"=FALSE,
            "X_element"=FALSE,
@@ -195,70 +171,7 @@ rm(f, features)
 ```{r}
 head(f2)
 
-# # Now I am fishing for things that get transcribed and are useful (not just transcription start sites)
-# f2_ele <- c("chromosome"=FALSE,
-#             "telomere"=FALSE,
-#             "X_element"=FALSE, # there are only a handful of studies on this. seems to be conserved, repetitive but function unclear. regulatory functions??
-#             "X_element_combinatorial_repeat"=FALSE, # part of the X element
-#             "telomeric_repeat"=FALSE,
-#             "gene"=TRUE,
-#             "CDS"=TRUE,
-#             "mRNA"=TRUE,
-#             "ARS"=FALSE,
-#             "long_terminal_repeat"=FALSE,
-#             "region"=FALSE,
-#             "ARS_consensus_sequence"=FALSE,
-#             "uORF"=TRUE, # so this is getting transcribed?? seems to have translation regulation functions. So it has be transcribed right?
-#             "intron"=FALSE, # but it gets thrown out. So not much use conserving it right?
-#             "ncRNA_gene"=TRUE,
-#             "noncoding_exon"=TRUE, # but it is an exon, so getting transcribed since it is part of an mRNA right??
-#             "ncRNA"=TRUE, # functionally conserved
-#             "tRNA_gene"=TRUE,
-#             "tRNA"=TRUE,
-#             "snoRNA_gene"=TRUE,
-#             "snoRNA"=TRUE,
-#             "centromere"=FALSE, # transcribed but is it transcriptionally active enough for our purposes?
-#             "centromere_DNA_Element_I"=FALSE,
-#             "centromere_DNA_Element_II"=FALSE,
-#             "centromere_DNA_Element_III"=FALSE,
-#             "LTR_retrotransposon"=FALSE, # so transcribed I assume? How active are they in yeast?
-#             "transposable_element_gene"=TRUE,
-#             "pseudogene"=FALSE, # not very useful here
-#             "Y_prime_element"=FALSE, # I do not think this is relevant here. Also a subtelomeric repetitive region
-#             "plus_1_translational_frameshift"=FALSE, # transcribed but not relevant
-#             "five_prime_UTR_intron"=TRUE, # might be worth it to keep this right?
-#             "telomerase_RNA_gene"=TRUE,
-#             "telomerase_RNA"=TRUE,
-#             "matrix_attachment_site"=FALSE, # not relevant here but is pretty cool
-#             "snRNA_gene"=TRUE,
-#             "snRNA"=TRUE,
-#             "silent_mating_type_cassette_array"=FALSE,
-#             "W_region"=FALSE,
-#             "X_region"=FALSE,
-#             "Y_region"=FALSE,
-#             "Z1_region"=FALSE,
-#             "Z2_region"=FALSE,
-#             "recombination_enhancer"=FALSE,
-#             "mating_type_region"=FALSE,
-#             "intein_encoding_region"=TRUE, # for reference, these are like introns but spliced from the protein itself rather than the mRNA
-#             "blocked_reading_frame"=FALSE,
-#             # leaving out the stuff around and about rRNA
-#             "rRNA_gene"=FALSE,
-#             "external_transcribed_spacer_region"=FALSE,
-#             "rRNA"=FALSE,
-#             "internal_transcribed_spacer_region"=FALSE,
-#             "non_transcribed_region"=FALSE,
-#             "origin_of_replication"=FALSE)
-
-# transcribed <- names(f_ele[f_ele == TRUE])
-# f <- f %>% filter(type %in% transcribed)
-
 f2 <- f2 %>% select(chr, start, end, strand, type)
-
-# f2 <- f2 %>%
-#   group_by(chr, start, end, strand) %>%
-#   slice(1) %>% 
-#   ungroup() 
 
 features2 <- bind_rows(list(f2, vand.tr, xu.tr))
 write_delim(features2, "/outs/all_features.txt", col_names = TRUE)
