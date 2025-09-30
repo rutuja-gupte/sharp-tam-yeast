@@ -1,0 +1,137 @@
+---
+title: "Final Models"
+author: "Rutuja Gupte"
+date: "2025-09-25"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+```
+
+```{r}
+print("loading data")
+d <- read.delim("/outs/the_greater_big_data_file.txt", header=TRUE, sep=" ")
+print("loaded data. running models. breathe.")
+```
+
+```{r}
+
+## check this
+d$rep.fitted <- (d$rep.fitted.dip + d$rep.fitted.hap)/2
+d$collision <- (d$collision.dip + d$collision.hap)/2
+
+d <- d %>% filter(transcripts < 15)
+
+head(d)
+```
+```{r}
+folds <- sample(rep(seq(1,5), 2394110))
+```
+
+```{r}
+mod1 <- glm(formula = SNM ~ base.type + collision + rep.fitted + protein +
+    base.type:collision + collision:rep.fitted + rep.fitted:protein +
+    base.type:protein, family = "binomial", data = d[folds!=1,])
+summary(mod1)
+pred1 <- predict(mod1, d[folds==1,], type="response")
+cor(d[folds==1,]$SNM, pred1)
+```
+
+```{r}
+mod2 <- glm(formula = SNM ~ base.type + collision + rep.fitted + protein +
+    base.type:collision + collision:rep.fitted + rep.fitted:protein +
+    base.type:protein, family = "binomial", data = d[folds!=2,])
+summary(mod2)
+pred2 <- predict(mod2, d[folds==2,], type="response")
+cor(d[folds==2,]$SNM, pred2)
+```
+
+```{r}
+mod3 <- glm(formula = SNM ~ base.type + collision + rep.fitted + protein +
+    base.type:collision + collision:rep.fitted + rep.fitted:protein +
+    base.type:protein, family = "binomial", data = d[folds!=3,])
+summary(mod3)
+pred3 <- predict(mod3, d[folds==3,], type="response")
+cor(d[folds==3,]$SNM, pred3)
+```
+
+```{r}
+mod4 <- glm(formula = SNM ~ base.type + collision + rep.fitted + protein +
+    base.type:collision + collision:rep.fitted + rep.fitted:protein +
+    base.type:protein, family = "binomial", data = d[folds!=4,])
+summary(mod4)
+pred4 <- predict(mod4, d[folds==4,], type="response")
+cor(d[folds==4,]$SNM, pred4)
+```
+
+```{r}
+mod5 <- glm(formula = SNM ~ base.type + collision + rep.fitted + protein +
+    base.type:collision + collision:rep.fitted + rep.fitted:protein +
+    base.type:protein, family = "binomial", data = d[folds!=5,])
+summary(mod5)
+pred5 <- predict(mod5, d[folds==5,], type="response")
+cor(d[folds==5,]$SNM, pred5)
+```
+
+```{r}
+coef_table <- data.frame(m1=mod1$coefficients, 
+                         m2=mod2$coefficients, 
+                         m3=mod3$coefficients, 
+                         m4=mod4$coefficients,
+                         m5=mod5$coefficients)
+coef_table
+```
+
+```{r}
+summ <- data.frame(mean=apply(coef_table, 1, mean), sd=apply(coef_table, 1, sd), var=apply(coef_table, 1, var))
+
+summ[2:nrow(summ),] %>% 
+  ggplot() +
+  geom_col(aes(x=row.names(summ)[2:nrow(summ)],y=mean)) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) 
+
+summ[2:nrow(summ),] %>% 
+  ggplot() +
+  geom_col(aes(x=row.names(summ)[2:nrow(summ)],y=sd)) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) 
+
+summ[2:nrow(summ),] %>% 
+  ggplot() +
+  geom_col(aes(x=row.names(summ)[2:nrow(summ)],y=var)) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) 
+```
+
+```{r}
+p_table <- data.frame(m1=coef(summary(mod1))[,4], 
+                         m2=coef(summary(mod2))[,4], 
+                         m3=coef(summary(mod3))[,4], 
+                         m4=coef(summary(mod4))[,4],
+                         m5=coef(summary(mod5))[,4])
+p_table
+```
+
+```{r}
+summ <- data.frame(mean=apply(p_table, 1, mean), sd=apply(p_table, 1, sd), var=apply(p_table, 1, var))
+
+summ[2:nrow(summ),] %>% 
+  ggplot() +
+  geom_col(aes(x=row.names(summ)[2:nrow(summ)],y=mean)) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) 
+
+summ[2:nrow(summ),] %>% 
+  ggplot() +
+  geom_col(aes(x=row.names(summ)[2:nrow(summ)],y=sd)) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) 
+
+summ[2:nrow(summ),] %>% 
+  ggplot() +
+  geom_col(aes(x=row.names(summ)[2:nrow(summ)],y=var)) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) 
+```
+
+
