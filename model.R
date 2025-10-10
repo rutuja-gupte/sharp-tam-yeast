@@ -7,7 +7,7 @@ print("loaded data. running models. breathe.")
 d$rep.fitted <- (d$rep.fitted.dip + d$rep.fitted.hap)/2
 d$collision <- (d$collision.dip + d$collision.hap)/2
 
-# d <- d %>% filter(transcripts < 15)
+d <- d %>% filter(transcripts < 15)
 
 head(d)
 

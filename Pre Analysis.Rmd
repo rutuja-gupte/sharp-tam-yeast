@@ -363,7 +363,7 @@ net.plus$chr<-NA
 cut.rows<-c(1,which(diff<0),nrow(net.plus))
 for(i in c(1:16)){net.plus$chr[cut.rows[i]:cut.rows[i+1]]<-i}
 
-net.minus<-read.delim("data/GSM617027_WT_NC_minus.txt",h=F,sep=" ")
+net.minus<-read.delim("/data/GSM617027_WT_NC_minus.txt",h=F,sep=" ")
 names(net.minus)<-c("pos","value")
 prev<-c(0,net.minus$pos[1:(nrow(net.minus)-1)])
 diff<-sign(net.minus$pos-prev)
@@ -406,5 +406,29 @@ d <- d %>% filter(!flag)
 
 
 ```{r}
-write.table(d, "/outs/the_greater_big_data_file_uncorrected.txt", row.names=FALSE)
+f.len <- read.delim("/outs/lengths.csv", sep=",")
+f.len <- f.len %>% group_by(chr, pos) %>% summarize(length=mean(length))
+
+head(f.len)
+
+d <- d %>% left_join(f.len, by=c("chr", "pos"))
+# d$length <- replace(d$length, is.na(d$length), 0)
+head(d)
+```
+
+```{r}
+f.len <- read.delim("/outs/distances.csv", sep=",")
+f.len <- f.len %>% group_by(chr, pos) %>% summarize(distance=mean(distance))
+
+head(f.len)
+
+d <- d %>% left_join(f.len, by=c("chr", "pos"))
+# d$length <- replace(d$length, is.na(d$length), 0)
+head(d)
+```
+
+
+
+```{r}
+write.table(d, "/outs/the_greater_big_data_file_bigger.txt", row.names=FALSE)
 ```
