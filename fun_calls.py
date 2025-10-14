@@ -1,0 +1,47 @@
+import subprocess
+import random
+import pandas as pd
+
+variables = pd.Series(['base.type',
+'rep.fitted',             
+'protein',            
+'transcripts' ,               
+'collision'    ,              
+'distance'      ,            
+'base.type*rep.fitted'   , 
+'base.type*protein'   ,
+'base.type*transcripts',   
+'base.type*collision'     ,
+'base.type*distance'      ,
+'rep.fitted*protein'    ,
+'rep.fitted*transcripts'    ,
+'rep.fitted*collision'      ,
+'rep.fitted*distance'       ,
+'protein*transcripts'   ,
+'protein*collision'     ,
+'protein*distance'       ,
+'transcripts*collision'     ,
+'transcripts*distance'      ,
+'collision*distance'        ,
+'transcripts:length',
+'I(distance^2)'])
+
+with open("/code/stepper_pro.R") as f:
+    file_contents = f.read()
+
+for i in range(25):
+    print(f"batch: {i}", flush=True)
+    processes = []
+    for i in range(4):
+        print(f"item: {i}", flush=True)
+        rand = random.choices([True, False], k=len(variables)-2)
+        name = "".join([str(item)[0] for item in rand])
+        mask = [True, True] + rand
+        replacement = " + ".join(variables[mask])
+        with open("/temp.R", "w") as w:
+            w.write(file_contents.replace("PLACEHOLDER", replacement))
+        with open(f'/{name}.out', 'w') as stdout, open('/logfile.err', 'a') as stderr:
+            p = subprocess.Popen("nohup Rscript /temp.R", shell=True, stdout=stdout, stderr=stderr)
+            processes.append(p)
+    for p in processes:
+        p.wait()
