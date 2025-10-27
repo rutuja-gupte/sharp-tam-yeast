@@ -11,155 +11,274 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ```{r}
 library(tidyverse)
+library(MASS)
+ 
+print("loading data")
+d <- read.delim("/outs/the_greater_big_data_file_bigger.txt", header=TRUE, sep=" ")
+print("loaded data. running models. breathe.")
+
+d$rep.fitted <- (d$rep.fitted.dip + d$rep.fitted.hap)/2
+d$collision <- (d$collision.dip + d$collision.hap)/2
+
+# d <- d %>% filter(transcripts < 15)
+d <- d %>% filter(transcripts < 2.5e4)
+
+head(d)
 ```
 
 ```{r}
-model_info <- data.frame(
-  model = c("sharp.dip.SNM", "jacob.dip.SNM", "sharp.etal.dip.SNM", "zhu.dip", "mut.SNM", "sharp.hap.SNM", "jacob.hap.SNM", "sharp.etal.hap.SNM", "sharp.dip.INDEL", "jacob.dip.INDEL", "sharp.etal.dip.INDEL", "sharp.hap.INDEL", "jacob.hap.INDEL", "sharp.etal.hap.INDEL"),
-  colors = c("A-dip.SNM", "A-dip.SNM", "A-dip.SNM", "A-dip.SNM", "A-dip.SNM", "B-hap.SNM", "B-hap.SNM" ,"B-hap.SNM", "C-dip.INDEL", "C-dip.INDEL",  "C-dip.INDEL", "D-hap.INDEL", "D-hap.INDEL", "D-hap.INDEL"),
-  rep = c(-2.052e-01, -7.978e-02, -1.668e-01, -2.215e-01, -1.951e-01, -6.032e-01, -7.171e-02, -3.974e-01, 5.642e-01, 3.822e-01, 4.926e-01, -5.408e-01, 7.076e-01, 2.137e-01),
-  reads = c(-2.217e-05, -1.234e-06, -1.318e-05, 6.391e-06, 3.598e-06, 2.319e-06, 2.438e-06, 2.371e-06, -5.405e-05, -3.627e-05, -4.914e-05, 7.460e-06, -1.101e-05, 3.523e-06),
-  coding = c(2.488e-02, -1.481e-01, -3.701e-02, -2.231e-01, -1.433e-01, 1.098e-01, 2.534e-01, 1.619e-01, -3.889e-01, -1.475e+00, -8.271e-01, -1.516e-01, -1.883e+00, -1.285e+00),
-  collision = c(1.753e-01, 8.724e-02, 1.477e-01, 2.243e-02, 8.972e-02, 2.309e-02, 3.028e-02, 2.582e-02, 1.170e-01, 1.944e-01, 1.421e-01, 2.136e-01, 3.268e-01, 2.786e-01),
-  rep.down = c(-4.775293e-01, -4.791561e-01, -3.913764e-01, -4.539471e-01, -3.558457e-01, -1.010930e+00, -5.756942e-01, -7.130008e-01, -4.886572e-01, -1.010614e+00, -3.404839e-01, -2.721823e+00, -9.137856e-01, -1.060782e+00),
-  rep.up = c(6.360356e-02, 3.130536e-01, 5.559174e-02, 8.412707e-03, -3.542779e-02, -2.037404e-01, 4.232165e-01, -8.627691e-02, 1.596508e+00, 1.720751e+00, 1.310239e+00, 1.4313730922, 2.291084e+00, 1.440745e+00),
-  reads.down = c(-5.111056e-05, -3.279386e-05, -3.481588e-05, 1.233552e-06, -2.119457e-06, -1.844082e-05, -2.759907e-05, -1.311742e-05, -2.195834e-04, -2.886155e-04, -1.806549e-04, NA, -2.631348e-04, NA),
-  reads.up = c(9.835700e-07, 9.795462e-06, 2.927847e-06, 9.678027e-06, 7.210977e-06, 9.951748e-06, 1.181710e-05, 9.085416e-06, -4.201084e-05, 1.466313e-05, 1.024323e-05, 0.0000195016, 7.514009e-06, 1.482445e-05),
-  coding.down = c(-2.158401e-01, -4.738202e-01, -2.330540e-01, -4.072347e-01, -2.762603e-01, -2.084179e-01, -1.706011e-01, -9.560667e-02, -1.198944e+00, -2.430221e+00, -1.436594e+00, -1.496125e+00, -2.878718e+00, -2.017664e+00),
-  coding.up = c(2.787125e-01, 2.049142e-01, 1.678515e-01, -3.122235e-02, -6.219840e-03, 4.547843e-01, 7.285998e-01, 4.370780e-01, 5.297016e-01, 1.466313e-05, -1.774493e-01, 1.7384435618, -8.145218e-01, -5.064310e-01),
-  collision.down = c(1.865925e-02, -1.459507e-01, 1.779274e-02, -1.133967e-01, -4.053164e-03, -1.858414e-01, -2.365411e-01, -1.384750e-01, -5.347440e-01, -7.212018e-01, -3.845017e-01, -8.744888e-01, -6.584588e-01, -4.444185e-01),
-  collision.up = c(3.320266e-01, 3.196031e-01, 2.776003e-01, 1.577637e-01, 1.833552e-01, 2.310384e-01, 2.957517e-01, 1.895493e-01, 7.606449e-01, 1.071910e+00, 6.606783e-01, 1.3048566369, 1.273596e+00, 9.906369e-01)
-)
+hist(d$transcripts[is.na(d$length)])
 ```
 
 ```{r}
-model_info %>% 
-  ggplot(aes(fct_reorder(model, colors), rep)) + 
-  geom_point(aes(color=colors)) +
-  geom_errorbar(aes(ymin = rep.down, ymax = rep.up)) + 
-  geom_hline(aes(yintercept = 0), color="red") + 
-  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) 
+table(is.na(d$length), is.na(d$distance))
+```
 
-model_info %>% 
-  ggplot(aes(fct_reorder(model, desc(colors)), rep)) + 
-  geom_point() +
-  geom_errorbar(aes(ymin = rep.down, ymax = rep.up)) + 
-  geom_hline(aes(yintercept = 0), color="red") + 
-  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
-  facet_wrap(vars(colors))
+```{r}
+table(is.na(d$length), d$SNM)
+```
+
+```{r}
+f1 = 2747
+f2 = 11161457
+  
+m1 = 212
+m2 = 839013
+
+p_hat_F <- f1/(f1+f2)
+n_F <- (f1+f2)
+p_hat_M <- m1/(m1+m2)
+n_M <- (m1+m2)
+
+# Calculate common proportion
+p_hat <- (p_hat_F*n_F + p_hat_M*n_M) / (n_F + n_M)
+
+# Check whether our sample sizes are large enough
+n_F*p_hat; n_F*(1-p_hat)
+n_M*p_hat; n_M*(1-p_hat)
+
+# Calculate test statistic
+z_obs <- (p_hat_F - p_hat_M - 0) / sqrt(p_hat*(1-p_hat)*(1/n_M + 1/n_F))
+
+# Find 0.05-level rejection region
+qnorm(0.025)
+qnorm(1-0.025)
+
+# Calculate p-value
+2*(1-pnorm(z_obs, lower.tail = F))
+```
+
+```{r}
+d %>% ggplot() +
+  geom_boxplot(aes(x=is.na(length), y=rep.fitted, color=SNM))
+```
+
+```{r}
+d %>% filter(SNM) %>% ggplot() +
+  stat_ecdf(aes(color=is.na(length), x=2-rep.fitted), geom = "step") +
+  stat_ecdf(aes(x=2-rep.fitted), color="grey", geom = "step") 
+```
+
+```{r}
+t1 <- t.test(d$rep.fitted[is.na(d$length) & d$SNM], d$rep.fitted[is.na(d$length) & !d$SNM])
+t1
+t2 <- t.test(d$rep.fitted[!is.na(d$length) & d$SNM], d$rep.fitted[!is.na(d$length) & !d$SNM])
+t2
+```
+
+```{r}
+cumul<-function(x, n=50, start=0, stop=1){x<-na.omit(x);sapply(seq(start,stop,length.out=n),function(i){length(x[x<=i])/length(x)})}
+    bt<-function(v,reps=5000){sapply(c(1:reps),function(i){mean(sample(na.omit(v),replace=T))})}
+    
+rep.sample <- sample(d$rep.fitted[ d$SNM], 3000, replace=TRUE)
+# rep.sample <- sample(seq(1,2, 0.001), 3000, replace=TRUE)
+    
+c.hap.obs<-cumul(2-d$rep.fitted[is.na(d$length) & d$SNM])
+c.dip.obs<-cumul(2-d$rep.fitted[!is.na(d$length) & d$SNM])
+c.rand<-cumul(2-rep.sample)
+ratio.seq<-seq(0,1,length.out=50)
+bt.hap.obs<-bt(2-d$rep.fitted[is.na(d$length) & d$SNM])
+bt.dip.obs<-bt(2-d$rep.fitted[!is.na(d$length) & d$SNM])
+bt.rand<-bt(2-rep.sample)
+    
+plot.means<-c(mean(2-rep.sample,na.rm=T),
+              mean(2-d$rep.fitted[is.na(d$length) & d$SNM],na.rm=T),
+              mean(2-d$rep.fitted[!is.na(d$length) & d$SNM],na.rm=T))
+plot.lwr<-as.numeric(c(quantile(bt.rand,0.025),
+  quantile(bt.hap.obs,0.025),quantile(bt.dip.obs,0.025)))
+plot.upr<-as.numeric(c(quantile(bt.rand,0.975),
+  quantile(bt.hap.obs,0.975),quantile(bt.dip.obs,0.975)))
+```
+
+```{r}
+mycol = c("red", "red", "blue", "blue")
+# par<-opar
+par(mar=c(0,0,0,0)+0.1,fig=c(0.1,0.47,0.55,0.95))
+plot(c.rand~ratio.seq, type="l", col="gray",lwd=1.5,las=1,xlab="",ylab="",cex.axis=0.8,xaxt="n")
+axis(1,cex.axis=0.8,padj=-1,tck=-0.05)
+points(c.hap.obs~ratio.seq, type="l", col=mycol[1],lwd=1.5)
+points(c.dip.obs~ratio.seq, type="l", col=mycol[3],lwd=1.5)
+text(-0.22,0.5,"Cumulative fraction of variants",cex=0.75,srt=90,xpd=NA)
+text(0.5,-0.25,"DNA replication timing",cex=0.75,xpd=NA)
+text(c(0,1),c(-0.25,-0.25),c("Earlier","Later"),cex=0.6,xpd=NA)
+text(rep(0,3),c(0.85,0.75,0.65),c("Random","Unannotated","Annotated"),cex=0.75, pos=4, col=c("gray",mycol[2:3]))
+    
+par(fig=c(0.37,0.465,0.555,0.72),new=T)
 ```
 
 
 ```{r}
-model_info %>% 
-  ggplot(aes(fct_reorder(model, colors), collision)) + 
-  geom_point(aes(color=colors)) +
-  geom_errorbar(aes(ymin = collision.down, ymax = collision.up)) + 
-  geom_hline(aes(yintercept = 0), color="red") + 
-  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+# par(fig=c(0.37,0.465,0.555,0.72),new=T)
+par(mar=c(0,0,0,0)+0.1,fig=c(0.1,0.47,0.25,0.85))
 
-model_info %>% 
-  ggplot(aes(fct_reorder(model, desc(colors)), collision)) + 
-  geom_point() +
-  geom_errorbar(aes(ymin = collision.down, ymax = collision.up)) + 
-  geom_hline(aes(yintercept = 0), color="red") + 
-  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
-  facet_wrap(vars(colors))
+plot(plot.means~c(1:3),
+     xlim=c(0,4),ylim=c(0.49,0.70),
+     col=c("gray",mycol[2:3]),pch=16,xaxt="n",yaxt="n",xlab="",ylab="",cex=0.6)
+arrows(c(1:3),plot.lwr,c(1:3),plot.upr,col=c("gray",mycol[2:3]),length=0.04,code=3,angle=90)
+axis(2,at=seq(0,1,0.02),hadj=0.1,cex.axis=0.5,tck=-0.01,las=1)
+text(-1.9,0.532,"Mean timing (95%CI)", cex=0.6, srt=90,xpd=NA)
 ```
 
 
 ```{r}
-model_info %>% 
-  ggplot(aes(fct_reorder(model, colors), coding)) + 
-  geom_point(aes(color=colors)) +
-  geom_errorbar(aes(ymin = coding.down, ymax = coding.up)) + 
-  geom_hline(aes(yintercept = 0), color="red") + 
-  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+d %>% filter(SNM) %>% ggplot() +
+  stat_ecdf(aes(color=is.na(length), x=2-rep.fitted), geom = "step") +
+  stat_ecdf(data=data.frame(random=seq(0,1,0.002)), aes(x=random), color="grey", geom = "step") 
+```
 
-model_info %>% 
-  ggplot(aes(fct_reorder(model, desc(colors)), coding)) + 
-  geom_point() +
-  geom_errorbar(aes(ymin = coding.down, ymax = coding.up)) + 
-  geom_hline(aes(yintercept = 0), color="red") + 
-  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
-  facet_wrap(vars(colors))
+```{r}
+d %>% filter(!is.na(distance)) %>% ggplot() +
+  geom_density(aes(x=distance, color=SNM))
+```
+
+```{r}
+t2 <- t.test((d$distance[!is.na(d$length) & d$SNM])^2, (d$distance[!is.na(d$length) & !d$SNM])^2)
+t2
+```
+
+```{r}
+hist(d$distance)
+```
+```{r}
+d %>% filter(!is.na(distance)) %>% ggplot() +
+  geom_point(aes(x=SNM, y=distance))
 ```
 
 
 ```{r}
-model_info %>% 
-  ggplot(aes(fct_reorder(model, colors), reads)) + 
-  geom_point(aes(color=colors)) +
-  geom_errorbar(aes(ymin = reads.down, ymax = reads.up)) + 
-  geom_hline(aes(yintercept = 0), color="red") + 
-  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+mod <- glm(formula = SNM ~ base.type + rep.fitted + protein + distance + 
+    collision + I(distance^2) + distance:collision + transcripts:length + 
+    protein:distance + base.type:distance + base.type:collision, 
+    family = "binomial", data = d)
+summary(mod)
+```
+```{r}
+coeff <- summary(mod)$coefficients
 
-model_info %>% 
-  ggplot(aes(fct_reorder(model, desc(colors)), reads)) + 
-  geom_point() +
-  geom_errorbar(aes(ymin = reads.down, ymax = reads.up)) + 
-  geom_hline(aes(yintercept = 0), color="red") + 
-  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
-  facet_wrap(vars(colors))
+coeffs <- data.frame(Coefficients = (coeff[-1,1]), Predictors=rownames(coeff)[-1])
+coeffs %>%
+  arrange(Coefficients) %>%
+  ggplot() +
+  geom_col(aes(y=Coefficients, x=fct_reorder(Predictors, Coefficients, .desc = TRUE))) +
+  theme(text = element_text(size = 15),
+        axis.text.x = element_text(angle = 90, hjust = 1)) +
+  xlab("Predictors")
 ```
 
-
-## Variance
 
 ```{r}
-v = 0.01464228
+#coeffs$PVE <- c(0.8669414,2,3,4,5,6,7,8,9,10,11,12,13,14)
+coeffs <- data.frame(Predictors = c("base.type", "rep.fitted", "protein", "distance", "collision", "distance^2", "distance:collision", "transcripts:length", "protein:distance", "base.type:distance", "base.type:collision"),
+                     PVE = c(0.8669414,0.01976554,0.0678921,0.05402601,0.0207636,0.008077868,0.003516638,
+                             0.00368679,0.02515068,0.01279865,0.005247945))
 
-# base.typeCG                      0.9918083  0.0436324  22.731  < 2e-16 ***
-1-0.002040859/v
-exp(0.9918083)
+coeffs <- data.frame(Predictors = c("rep.fitted", "protein", "distance", "collision", "distance^2", "distance:collision", "transcripts:length", "protein:distance", "base.type:distance", "base.type:collision"),
+                     PVE = c(0.01976554,0.0678921,0.05402601,0.0207636,0.008077868,0.003516638,
+                             0.00368679,0.02515068,0.01279865,0.005247945))
+coeffs
 
-# rep.fitted.dip                   0.2441017  0.1814062   1.346 0.178429    
-1-0.01460047/v
-exp(0.2441017)
+coeffs %>%
+  ggplot() +
+  geom_col(aes(y=PVE*100, x=fct_reorder(Predictors, PVE, .desc = TRUE))) +
+  theme(text = element_text(size = 18),
+        axis.text.x = element_text(angle = 90, hjust = 1)) +
+  ylab("PVE") +
+  xlab("Predictors")
+```
 
-# reads                            0.0003922  0.0001160   3.380 0.000724 ***
-1-0.01464228/v
-exp(0.0003922)
+```{r}
+d %>% 
+  # filter(distance < 5e3) %>% 
+  ggplot() +
+  # geom_density(aes(x=distance, color=protein, linetype=SNM)) +
+  stat_ecdf(aes(x=distance, color=protein, linetype=SNM)) +
+  xlim(c(0,5e3)) + 
+  ylab("Cumulative Density") +
+  xlab("Distance") +
+  theme(text = element_text(size = 18))
+```
 
-# codingTRUE                      -0.8364834  0.3726488  -2.245 0.024788 *  
-1-0.01452837/v
-exp(-0.8364834)
-
-# annotatedTRUE                    0.0791154  0.1816050   0.436 0.663094    
-1-0.01463792/v
-exp(0.0791154)
-
-# usefulishTRUE                    1.2183441  0.2645069   4.606 4.10e-06 ***
-1-0.01420625/v
-exp(1.2183441)
-
-# collision.dipTRUE               -0.4615400  0.1489498  -3.099 0.001944 ** 
-1-0.01464228/v
-exp(-0.4615400)
-
-# reads:codingTRUE                -0.0004127  0.0001184  -3.486 0.000491 ***
-1-0.01424838/v
-exp(-0.0004127)
-
-# rep.fitted.dip:reads            -0.0004074  0.0001223  -3.331 0.000865 ***
-1-0.01464228/v
-exp(-0.0004074)
-
-# codingTRUE:collision.dipTRUE     0.6152270  0.1558002   3.949 7.85e-05 ***
-1-0.01424403/v
-exp(0.6152270)
-
-# rep.fitted.dip:codingTRUE       -0.5891687  0.2046770  -2.879 0.003995 ** 
-1-0.014451/v
-exp(-0.5891687)
-
-# rep.fitted.dip:reads:codingTRUE  0.0004261  0.0001233   3.456 0.000548 ***
-1-0.01423595/v
-exp(0.0004261)
+```{r}
+d %>% 
+  # filter(distance < 5e3) %>% 
+  filter(!protein) %>%
+  ggplot() +
+  # geom_density(aes(x=distance, color=protein, linetype=SNM)) +
+  stat_ecdf(aes(x=distance, color=protein, linetype=SNM)) +
+  xlim(c(0,5e3)) + 
+  ylab("Cumulative Density") +
+  xlab("Distance")
 ```
 
 
+```{r}
+predicted <- predict(mod, type="response")
+t <- d %>% filter(!is.na(distance))
+t$predict_SNM <- predicted 
+```
 
 
+```{r}
+q <- t %>% 
+  group_by(G = cut(predict_SNM, breaks=unique(quantile(predict_SNM, probs=seq(0, 1, by=0.0001))))) %>%
+  summarize(predicted = mean(predict_SNM), rep.fitted = mean(rep.fitted), 
+            transcripts = mean(transcripts), count=n())
+# q
+nrow(q)
+# cor(q$predicted, q$observed)
+q %>% 
+  ggplot(aes(x=transcripts+1, y=2-rep.fitted, z=predicted)) + 
+  # geom_hex(aes(fill=predict_dip.SNM))
+  # ggplot(diamonds, aes(x = x, y = price, z = depth)) +
+  stat_summary_hex(fun = mean, bins = 30, show.legend = TRUE) +
+  # stat_summary_hex(fun=function(z){log(mean(z))}, bins=25) +
+  scale_fill_gradientn(colors=rev(viridis(20)), guide=guide_colorbar(title="Mutation")) +
+  # scale_fill_continuous(type = "viridis") +
+  # scale_fill_gradientn(colors=rev(rainbow(6))) +
+  # facet_grid(cols = vars(protein),
+  #            rows = vars(base.type), labeller = label_both)  +
+  scale_x_log10() +
+  xlab("Transcription Level") +
+  ylab("Replication Timing") +
+  theme(text = element_text(size = 18))
+```
 
+
+```{r}
+
+q <- t %>% 
+  group_by(G = cut(predict_SNM, breaks=unique(quantile(predict_SNM, probs=seq(0, 1, by=0.01))))) %>%
+  summarize(predicted = mean(predict_SNM), observed = mean(SNM), count=n())
+# q
+nrow(q)
+cor(q$predicted, q$observed)
+q %>% ggplot() +
+  geom_point(aes(y=observed, x=predicted)) +
+  geom_smooth(aes(y=observed, x=predicted), method="lm", se=FALSE, color="red") +
+  # geom_abline(slope=1, intercept=0, color="red") +
+  xlab("Expected mutations in quantile") +
+  ylab("Observed mutations in quantile") +
+  theme(text = element_text(size = 18)) 
+  
+```
 

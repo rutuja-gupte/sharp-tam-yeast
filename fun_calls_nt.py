@@ -26,10 +26,10 @@ variables = pd.Series(['base.type',
 'transcripts:length',
 'I(distance^2)'])
 
-with open("/code/stepper_pro.R") as f:
+with open("/code/stepper_nt.R") as f:
     file_contents = f.read()
 
-for i in range(25):
+for i in range(5):
     print(f"batch: {i}", flush=True)
     processes = []
     for i in range(4):
