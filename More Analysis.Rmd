@@ -1,0 +1,383 @@
+---
+title: "More Analysis"
+output: html_document
+---
+
+```{r}
+library(tidyverse)
+library(MASS)
+
+print("loading data")
+d <- read.delim("/outs/the_greater_big_data_file_bigger.txt", header=TRUE, sep=" ")
+print("loaded data. running models. breathe.")
+
+d$rep.fitted <- (d$rep.fitted.dip + d$rep.fitted.hap)/2
+d$collision <- (d$collision.dip + d$collision.hap)/2
+
+# d <- d %>% filter(transcripts < 15)
+d <- d %>% filter(transcripts < 2.5e4)
+
+d2 <- d %>% filter(!is.na(length))
+
+head(d)
+
+```
+
+
+```{r}
+mod <- glm(SNM ~ ref*tr.sign + rep.fitted, d2, family="binomial")
+summary(mod)
+
+```
+
+
+
+Call:
+glm(formula = SNM ~ base.type + base.type:annotated + rep.fitted + 
+    rep.fitted:annotated, family = "binomial", data = d)
+
+Coefficients:
+                            Estimate Std. Error z value Pr(>|z|)    
+(Intercept)                  -9.3176     0.3225 -28.894  < 2e-16 ***
+base.typeCG                   0.7936     0.1425   5.568 2.58e-08 ***
+base.typediNT                 0.4871     0.2773   1.757  0.07900 .  
+rep.fitted                    0.5095     0.2179   2.338  0.01938 *  
+base.typeAT:annotatedTRUE     0.7666     0.3372   2.274  0.02299 *  
+base.typeCG:annotatedTRUE     0.8516     0.3345   2.546  0.01090 *  
+base.typediNT:annotatedTRUE   1.6121     0.4134   3.900 9.63e-05 ***
+annotatedTRUE:rep.fitted     -0.6880     0.2286  -3.009  0.00262 ** 
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+
+(Dispersion parameter for binomial family taken to be 1)
+
+    Null deviance: 55085  on 12003428  degrees of freedom
+Residual deviance: 54364  on 12003421  degrees of freedom
+AIC: 54380
+
+Number of Fisher Scoring iterations: 11
+
+
+```{r}
+d$annotated <- !is.na(d$length)
+
+mod <- glm(SNM ~ (base.type + rep.fitted)*annotated, d, family="binomial")
+summary(mod)
+
+mod <- glm(SNM ~ base.type + base.type:annotated + rep.fitted + rep.fitted:annotated, d, family="binomial")
+summary(mod)
+
+mod <- glm(SNM ~ base.type + rep.fitted + rep.fitted:annotated, d, family="binomial")
+summary(mod)
+```
+
+Accounting for base type and replication timing, annotated regions have more mutations. Comment in discussion with potential reason why. 
+
+
+```{r}
+mod <- glm(formula = SNM ~ base.type + rep.fitted + protein + distance +
+    collision + I(distance^2) + distance:collision + transcripts:length +
+    protein:distance + base.type:distance + base.type:collision,
+    family = "binomial", data = d2)
+summary(mod)
+```
+
+```{r}
+library(car)
+car::vif(mod)
+```
+
+seems ok??
+
+```{r}
+cooks_d <- cooks.distance(mod)
+quantile(cooks_d)
+
+quantile(cooks_d, 0.95)
+
+# data.frame(cooks_d = cooks_d, chr=d2$chr, pos=d2$pos, transcripts=d2$transcripts, rep.fitted=d2$rep.fitted, length=d2$length, distance=d2$distance) %>% 
+#   filter(cooks_d>0.001) %>% view()
+
+data.frame(cooks_d = cooks_d) %>% 
+  filter(cooks_d>0.0001) %>%  
+  ggplot() +
+  geom_histogram(aes(x=cooks_d))
+```
+
+
+```{r}
+residual = resid(mod)
+# data.frame(residual=residual, chr=d2$chr, pos=d2$pos, transcripts=d2$transcripts, rep.fitted=d2$rep.fitted, length=d2$length, distance=d2$distance, cooks_d=cooks_d, SNM=d2$SNM) %>% 
+#   filter(residual>1) %>% view()
+
+
+quantile(residual, 0.95)
+quantile(d$transcripts)
+```
+
+
+These are all the mutations lol
+
+```{r}
+mean(d2$SNM)
+var(d2$SNM)
+```
+
+```{r}
+mod <- glm(formula = SNM ~ base.type + rep.fitted + protein + distance +
+    collision + I(distance^2) + distance:collision + transcripts:length +
+    protein:distance + base.type:distance + base.type:collision,
+    family = "poisson", data = d2)
+summary(mod)
+```
+
+
+```{r}
+probs = dpois(0:1, lambda=mean(d2$SNM))
+probs
+
+comp = 1-sum(probs)
+comp
+
+chisq.test(x=c(sum(!d2$SNM), sum(d2$SNM), 0), p=c(probs, comp))
+chisq.test(x=c(sum(!d2$SNM), sum(d2$SNM)), p=c(probs), rescale.p=TRUE)
+```
+
+
+```{r}
+mod <- glm(formula = SNM ~ base.type + rep.fitted + protein + distance +
+    collision + I(distance^2) + distance:collision + transcripts:length +
+    protein:distance + base.type:distance + base.type:collision,
+    family = "binomial", data = d2)
+summary(mod)
+```
+
+```{r}
+d2 |> 
+  mutate(comp_res = coef(mod)["rep.fitted"]*rep.fitted + residuals(mod, type = "working")) |> 
+  ggplot(aes(x = rep.fitted, y = comp_res)) +
+  geom_point() +
+  geom_smooth(color = "red", method = "lm", linetype = 2, se = F) +
+  geom_smooth(se = F)
+```
+
+```{r}
+(d2 |> 
+  mutate(comp_res = coef(mod)["rep.fitted"]*rep.fitted + residuals(mod, type = "working")))$comp_res |> quantile(na.rm=TRUE)
+```
+
+
+
+```{r}
+d2 |> 
+  mutate(comp_res = coef(mod)["rep.fitted"]*rep.fitted + residuals(mod, type = "working")) |> 
+  ggplot(aes(x = rep.fitted, y = comp_res)) +
+  geom_point() +
+  geom_smooth(color = "red", method = "lm", linetype = 2, se = F) +
+  geom_smooth(se = F) +
+  coord_cartesian(ylim=c(-1.560111, 1000))
+```
+
+
+```{r}
+d2 |> 
+  mutate(comp_res = coef(mod)["rep.fitted"]*rep.fitted + residuals(mod, type = "working")) |> 
+  ggplot(aes(x = rep.fitted, y = comp_res)) +
+  geom_point() +
+  geom_smooth(color = "red", method = "lm", linetype = 2, se = F) +
+  geom_smooth(se = F) +
+  coord_cartesian(ylim=c(-1.560111, 20))
+```
+
+Yay this is gooooood!
+
+
+```{r}
+d2 |> 
+  mutate(comp_res = coef(mod)["distance"]*distance + residuals(mod, type = "working")) |> 
+  ggplot(aes(x = distance, y = comp_res)) +
+  geom_point() +
+  geom_smooth(color = "red", method = "lm", linetype = 2, se = F) +
+  geom_smooth(se = F) 
+```
+
+```{r}
+(d2 |> 
+  mutate(comp_res = coef(mod)["distance"]*distance + residuals(mod, type = "working")))$comp_res |> quantile(na.rm=TRUE)
+```
+
+
+```{r}
+d2 |> 
+  mutate(comp_res = coef(mod)["distance"]*distance + residuals(mod, type = "working")) |> 
+  ggplot(aes(x = distance, y = comp_res)) +
+  geom_point() +
+  geom_smooth(color = "red", method = "lm", linetype = 2, se = F) +
+  geom_smooth(se = F) +
+  coord_cartesian(ylim=c(-6, 20))
+```
+Diverging at higher distances. But how bad is bad?
+
+
+```{r}
+d2 <-
+  d2 |> 
+  mutate(dffits = dffits(mod))
+
+d2 %>%
+  filter(abs(dffits) > 2*sqrt(length(coef(mod))/nobs(mod))) %>% view()
+
+d2 |> 
+  mutate(obs_number = row_number(),
+         large = ifelse(abs(dffits) > 2*sqrt(length(coef(mod))/nobs(mod)),
+                        "red", "black")) |> 
+  ggplot(aes(obs_number, dffits, color = large)) +
+  geom_point() + 
+  geom_hline(yintercept = c(-1,1) * 2*sqrt(length(coef(mod))/nobs(mod)), color = "red") +
+  scale_color_identity()
+```
+
+
+```{r}
+DescTools::PseudoR2(mod, which = "all")
+```
+
+
+Perhaps a comparison with a base model might help here?????
+
+```{r}
+mod0 <- glm(formula = SNM ~ base.type + rep.fitted,
+    family = "binomial", data = d2)
+summary(mod0)
+DescTools::PseudoR2(mod0, which = "all")
+```
+
+```{r}
+mod <- glm(formula = SNM ~ base.type + rep.fitted + protein + distance + 
+    collision + I(distance^2) + base.type:collision + transcripts:length + 
+    protein:distance + base.type:distance + distance:collision, 
+    family = "binomial", data = d2)
+summary(mod)
+```
+
+```{r}
+t <- d
+t <- within(t, distance <- ifelse(is.na(distance), mean(d$distance, na.rm=TRUE), distance))
+t <- within(t, length <- ifelse(is.na(length), mean(d$length, na.rm=TRUE), length))
+
+t$predict_all <- predict(mod, newdata=t, type="response")
+
+q <- t %>% 
+  filter(is.na(d$distance)) %>%
+  group_by(G = cut(predict_all, breaks=unique(quantile(predict_all, probs=seq(0, 1, by=0.01))))) %>%
+  summarize(predicted = mean(predict_all), observed = mean(SNM), count=n())
+# q
+nrow(q)
+cor(q$predicted, q$observed)
+q %>% ggplot() +
+  geom_point(aes(y=observed, x=predicted)) +
+  geom_smooth(aes(y=observed, x=predicted), method="lm", se=FALSE, color="red") +
+  # geom_abline(slope=1, intercept=0, color="red") +
+  xlab("Expected mutations in quantile") +
+  ylab("Observed mutations in quantile") +
+  theme(text = element_text(size = 18)) 
+  
+```
+
+
+```{r}
+t <- d
+# t <- within(t, distance <- ifelse(is.na(distance), mean(d$distance, na.rm=TRUE), distance))
+# t <- within(t, length <- ifelse(is.na(length), mean(d$length, na.rm=TRUE), length))
+
+t <- within(t, distance <- ifelse(is.na(distance), 0, distance))
+t <- within(t, length <- ifelse(is.na(length), 0, length))
+
+t$predict_all <- predict(mod, newdata=t, type="response")
+
+q <- t %>% 
+  filter(is.na(d$distance)) %>%
+  group_by(G = cut(predict_all, breaks=unique(quantile(predict_all, probs=seq(0, 1, by=0.01))))) %>%
+  summarize(predicted = mean(predict_all), observed = mean(SNM), count=n())
+# q
+nrow(q)
+cor(q$predicted, q$observed)
+q %>% ggplot() +
+  geom_point(aes(y=observed, x=predicted)) +
+  geom_smooth(aes(y=observed, x=predicted), method="lm", se=FALSE, color="red") +
+  # geom_abline(slope=1, intercept=0, color="red") +
+  xlab("Expected mutations in quantile") +
+  ylab("Observed mutations in quantile") +
+  theme(text = element_text(size = 18)) 
+  
+```
+
+
+
+
+```{r}
+q <- t %>% 
+  filter(!is.na(d$distance)) %>%
+  group_by(G = cut(predict_all, breaks=unique(quantile(predict_all, probs=seq(0, 1, by=0.01))))) %>%
+  summarize(predicted = mean(predict_all), observed = mean(SNM), count=n())
+# q
+nrow(q)
+cor(q$predicted, q$observed)
+q %>% ggplot() +
+  geom_point(aes(y=observed, x=predicted)) +
+  geom_smooth(aes(y=observed, x=predicted), method="lm", se=FALSE, color="red") +
+  # geom_abline(slope=1, intercept=0, color="red") +
+  xlab("Expected mutations in quantile") +
+  ylab("Observed mutations in quantile") +
+  theme(text = element_text(size = 18)) 
+```
+
+
+
+```{r}
+t <- d
+t$distance <- mean(d$distance, na.rm=TRUE)
+t$length <- mean(d$length, na.rm=TRUE)
+
+t$predict_all <- predict(mod, newdata=t, type="response")
+
+q <- t %>% 
+  filter(!is.na(d$distance)) %>%
+  group_by(G = cut(predict_all, breaks=unique(quantile(predict_all, probs=seq(0, 1, by=0.01))))) %>%
+  summarize(predicted = mean(predict_all), observed = mean(SNM), count=n())
+# q
+nrow(q)
+cor(q$predicted, q$observed)
+q %>% ggplot() +
+  geom_point(aes(y=observed, x=predicted)) +
+  geom_smooth(aes(y=observed, x=predicted), method="lm", se=FALSE, color="red") +
+  # geom_abline(slope=1, intercept=0, color="red") +
+  xlab("Expected mutations in quantile") +
+  ylab("Observed mutations in quantile") +
+  theme(text = element_text(size = 18)) 
+```
+
+
+```{r}
+t <- d
+t$distance <- 0
+t$length <- 0
+t$transcripts <- 0
+
+t$predict_all <- predict(mod, newdata=t, type="response")
+
+q <- t %>% 
+  filter(!is.na(d$distance)) %>%
+  group_by(G = cut(predict_all, breaks=unique(quantile(predict_all, probs=seq(0, 1, by=0.01))))) %>%
+  summarize(predicted = mean(predict_all), observed = mean(SNM), count=n())
+# q
+nrow(q)
+cor(q$predicted, q$observed)
+q %>% ggplot() +
+  geom_point(aes(y=observed, x=predicted)) +
+  geom_smooth(aes(y=observed, x=predicted), method="lm", se=FALSE, color="red") +
+  # geom_abline(slope=1, intercept=0, color="red") +
+  xlab("Expected mutations in quantile") +
+  ylab("Observed mutations in quantile") +
+  theme(text = element_text(size = 18)) 
+```

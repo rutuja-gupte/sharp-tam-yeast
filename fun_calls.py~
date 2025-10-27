@@ -24,8 +24,7 @@ variables = pd.Series(['base.type',
 'transcripts*distance'      ,
 'collision*distance'        ,
 'transcripts:length',
-'I(distance^2)',
-'length'])
+'I(distance^2)'])
 
 with open("/code/stepper_pro.R") as f:
     file_contents = f.read()
