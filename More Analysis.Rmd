@@ -647,6 +647,7 @@ d %>%
   ylab("Cumulative density") +
   theme(text = element_text(size = 18))
 ```
+
 ```{r}
 d %>%
   ggplot() +
@@ -720,34 +721,54 @@ t.test(d[d$SNM,]$distance/d[d$SNM,]$length, mu = 0.5)
 dist.df <- d[d$SNM, c("SNM", "distance", "length", "predicted")]
 dist.df <- dist.df %>% arrange("length")
 dist.df %>% 
-  group_by(L = cut(length, breaks=9), D = cut(distance, breaks=100)) %>% 
+  group_by(L = cut(length, breaks=15), D = cut(distance, breaks=1000)) %>% 
   summarize(observed = sum(SNM)) %>% 
   mutate(distance_group = as.numeric(str_extract(D, "\\((.*),.*]", 1)),
-         length_group = as.numeric(str_extract(L, "\\((.*),.*]", 1))) %>%
+         length_group = as.numeric(str_extract(L, "\\(.*,(.*)]", 1))) %>%
   ggplot() + 
   geom_point(aes(x=distance_group, y=observed)) +
   theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
-  facet_grid(cols=vars(length_group))
+  facet_grid(cols=vars(length_group), scales="free") #+
+  #xlim(0, length_group)
 
-
-dist.df <- d[, c("SNM", "distance", "length", "predicted")]
-dist.df %>% 
-  group_by(L = cut(length, breaks=10), SNM) %>% 
-  summarize(mean(distance), sd(distance), n=n()) %>%
-  pivot_wider(names_from = SNM, values_from = c("mean(distance)", "sd(distance)", "n")) %>%
-  mutate(se <- s/sqrt(n))
-  
-
-ggplot() + 
-  geom_point(aes(x=L, y=`TRUE`/`FALSE`), color='red') +
-  geom_hline(yintercept=1) +
-  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
 
 
 # q <- t %>% 
 #   filter(!is.na(d$distance)) %>%
 #   group_by(G = cut(predict_all, breaks=unique(quantile(predict_all, probs=seq(0, 1, by=0.01))))) %>%
 #   summarize(predicted = mean(predict_all), observed = mean(SNM), count=n())
+```
+
+
+```{r}
+dist.df <- d[d$SNM, c("SNM", "distance", "length", "predicted")]
+
+breaks = as.numeric(str_extract(unique(cut(dist.df$length, breaks=10)), "\\(.*,(.*)]", 1))
+
+dist.df %>% 
+  group_by(L = cut(length, breaks=10), SNM) %>% 
+  summarize(mean(distance), sd(distance), n=n(), mean(length), sd(length)) %>%
+  pivot_wider(names_from = SNM, values_from = c("mean(distance)", "sd(distance)", "n", 
+                                                "mean(length)", "sd(length)")) %>%
+  mutate(length_group = as.numeric(str_extract(L, "\\(.*,(.*)]", 1))) %>%
+  mutate(moe = qnorm(1-0.05/2)*`sd(distance)_TRUE`/sqrt(n_TRUE),
+         moe_l = qnorm(1-0.05/2)*`sd(length)_TRUE`/sqrt(n_TRUE)) %>%
+  mutate(upper = `mean(distance)_TRUE`+moe,
+         lower = `mean(distance)_TRUE`-moe,
+         u = `mean(length)_TRUE`+moe_l,
+         l = `mean(length)_TRUE`-moe_l) %>%
+  ggplot() +
+  geom_errorbar(aes(x=length_group, y=`mean(distance)_TRUE`, ymin=lower, ymax=upper), color="red") +
+  geom_errorbar(aes(x=length_group, y=`mean(length)_TRUE`, ymin=l, ymax=u)) +
+  geom_step(aes(x=length_group, y=length_group), lines="horizontal", direction="mid", color="grey") +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
+  xlab("Length group") +
+  scale_x_continuous(labels=breaks,
+                     breaks=breaks) +
+  ylab("Distance from Start Site")
+  
+
+
 ```
 
 
