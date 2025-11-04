@@ -29,7 +29,7 @@ variables = pd.Series(['base.type',
 with open("/code/stepper_pro.R") as f:
     file_contents = f.read()
 
-for i in range(15):
+for i in range(25):
     print(f"batch: {i}", flush=True)
     processes = []
     for i in range(4):

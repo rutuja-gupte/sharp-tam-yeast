@@ -381,3 +381,380 @@ q %>% ggplot() +
   ylab("Observed mutations in quantile") +
   theme(text = element_text(size = 18)) 
 ```
+
+
+
+```{r}
+print("loading data")
+d <- read.delim("/outs/the_greater_big_data_file_bigger.txt", header=TRUE, sep=" ")
+print("loaded data. running models. breathe.")
+
+d$rep.fitted <- (d$rep.fitted.dip + d$rep.fitted.hap)/2
+d$collision <- (d$collision.dip + d$collision.hap)/2
+
+# d <- d %>% filter(transcripts < 15)
+d <- d %>% filter(transcripts < 2.5e4)
+
+d <- d %>% filter(!is.na(length))
+
+head(d)
+```
+
+```{r}
+mod <- glm(formula = SNM ~ base.type + rep.fitted + protein + distance + 
+    collision + I(distance^2) + base.type:collision + transcripts:length + 
+    protein:distance + base.type:distance + distance:collision, 
+    family = "binomial", data = d)
+summary(mod)
+```
+
+```{r}
+m <- glm.nb(formula = SNM ~ base.type + rep.fitted + protein + distance + 
+    collision + I(distance^2) + base.type:collision + transcripts:length + 
+    protein:distance + base.type:distance + distance:collision, data = d)
+summary(m)
+```
+
+```{r}
+m2 <- glm(formula = SNM ~ base.type + rep.fitted + protein + distance + 
+    collision + I(distance^2) + base.type:collision + transcripts:length + 
+    protein:distance + base.type:distance + distance:collision, 
+    family = "poisson", data = d)
+summary(m2)
+```
+```{r}
+pchisq(2 * (logLik(m) - logLik(m2)), df = 1, lower.tail = FALSE)
+pchisq(2 * (logLik(m) - logLik(mod)), df = 1, lower.tail = FALSE)
+```
+
+
+Another sign that okay to poisson or binomial 
+
+```{r}
+pchisq(1, df=16)
+
+pchisq(926, df=1)
+```
+
+
+```{r}
+d$predicted <- predict(mod, newdata=d, type="response")
+```
+
+
+Call:
+glm(formula = SNM ~ base.type + rep.fitted + protein + distance + 
+    collision + I(distance^2) + base.type:collision + transcripts:length + 
+    protein:distance + base.type:distance + distance:collision, 
+    family = "binomial", data = d)
+
+Coefficients:
+                          Estimate Std. Error z value Pr(>|z|)    
+(Intercept)             -8.543e+00  1.442e-01 -59.245  < 2e-16 ***
+base.typeCG              6.983e-01  7.600e-02   9.189  < 2e-16 ***
+base.typediNT            1.449e+00  1.093e-01  13.259  < 2e-16 ***
+rep.fitted              -2.793e-01  7.076e-02  -3.948 7.89e-05 ***
+proteinTRUE              1.240e-01  1.040e-01   1.192 0.233378    
+distance                -2.767e-04  8.039e-05  -3.442 0.000578 ***
+collision               -2.241e-02  7.981e-02  -0.281 0.778818    
+I(distance^2)           -1.718e-08  7.444e-09  -2.308 0.020985 *  
+base.typeCG:collision    1.519e-01  8.745e-02   1.737 0.082323 .  
+base.typediNT:collision -4.221e-02  1.273e-01  -0.332 0.740262    
+transcripts:length       3.292e-09  1.866e-09   1.765 0.077603 .  
+proteinTRUE:distance     3.076e-04  7.512e-05   4.095 4.23e-05 ***
+base.typeCG:distance     8.446e-05  3.936e-05   2.146 0.031896 *  
+base.typediNT:distance  -8.845e-05  6.486e-05  -1.364 0.172643    
+distance:collision       6.455e-05  3.858e-05   1.673 0.094284 .  
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+
+(Dispersion parameter for binomial family taken to be 1)
+
+    Null deviance: 51148  on 11164203  degrees of freedom
+Residual deviance: 50350  on 11164189  degrees of freedom
+AIC: 50380
+
+Number of Fisher Scoring iterations: 12
+
+```{r}
+n = 10
+dummy_df <- expand.grid(
+  base.type = c("diNT", "CG", "AT"),
+  rep.fitted = seq(min(d$rep.fitted),max(d$rep.fitted),length.out=n),
+  protein = c(TRUE, FALSE),
+  distance = seq(0, max(d$distance), length.out=n),
+  collision = c(1, 0),
+  transcripts = seq(0, max(d$transcripts), length.out=n),
+  length = seq(0, max(d$length), length.out=n)
+)
+```
+
+
+```{r}
+dummy_df$predicted <- predict(mod, newdata=dummy_df, type="response")
+```
+
+```{r}
+base.df <- data.frame(
+  base.type = c("CpG", "C/G", "A/T"),
+  sites = c(sum(d$base.type == "diNT"), sum(d$base.type == "CG"), sum(d$base.type == "AT")),
+  mutations = c(sum(d[d$SNM,]$base.type == "diNT"), sum(d[d$SNM,]$base.type == "CG"),
+                sum(d[d$SNM,]$base.type == "AT"))
+)
+
+base.df$mutated_fraction <- base.df$mutations / base.df$sites
+base.df
+
+base.df %>%
+  ggplot() +
+  geom_col(aes(x=base.type, y=mutated_fraction/624598, fill=base.type)) +
+  scale_fill_viridis_d() +
+  xlab("Site Type") +
+  ylab("Mutation Rate") +
+  theme(text = element_text(size = 18)) 
+  
+```
+
+```{r}
+# 1. Enter data and calculate original mean/sd, n
+cotanine <- d[d$SNM,]$rep.fitted
+x_bar <- mean(cotanine)
+s <- sd(cotanine)
+n <- length(cotanine)
+se <- s/sqrt(n)
+
+# Specify number of bootstrap samples, create a vector of that length
+# to store t_hat values
+B <- 10000
+t_hat <- numeric(B)
+
+# Bootstrap loop
+for(i in 1:B){
+  # 2. Draw a SRS of size n from data
+  x_star <- sample(cotanine, size = n, replace = T)
+  
+  # 3. Calculate resampled mean and sd
+  x_bar_star <- mean(x_star)
+  s_star <- sd(x_star)
+  
+  # 4. Calculate t_hat, and store it in vector
+  t_hat[i] <- (x_bar_star - x_bar) / (s_star/sqrt(n))
+}
+
+# Optional: plot approximate sampling distribution
+# hist(t_hat, main = "Approx. Sampling Distribution of t")
+
+# Find upper and lower critical values of approx. distribution
+t_lower <- quantile(t_hat, probs = 0.025, names = F)
+t_upper <- quantile(t_hat, probs = 0.975, names = F)
+
+# Calculate upper and lower bounds of CI
+boot_ci_upper <- x_bar - t_lower*se
+boot_ci_lower <- x_bar - t_upper*se
+
+c(boot_ci_lower, boot_ci_upper)
+
+```
+
+
+```{r}
+t.test(d[d$SNM,]$rep.fitted)
+```
+
+
+
+```{r}
+t.test(d[!d$SNM,]$rep.fitted)
+```
+
+
+```{r}
+rep.sample <- sample(d$rep.fitted, nrow(d), replace=TRUE)
+```
+
+
+```{r}
+t.test(rep.sample)
+t.test(d$rep.fitted)
+```
+
+```{r}
+rep.df <- data.frame(
+  site.type = c("random", "SNM", "Non SNM"),
+  rep.fitted = c(mean(rep.sample), 
+                 mean(d[d$SNM,]$rep.fitted), 
+                 mean(d[!d$SNM,]$rep.fitted)),
+  lower = c(1.365685, 1.341576, 1.365688),
+  upper = c(1.366012, 1.362088, 1.366016)
+)
+
+rep.df %>%
+  ggplot() +
+  geom_errorbar(aes(x=factor(site.type, levels=site.type), y=2-rep.fitted, color=site.type, ymin = 2-upper, ymax = 2-lower)) +
+  scale_color_viridis_d(option="H") +
+  xlab("Site") +
+  ylab("Replication timing") +
+  theme(text = element_text(size = 18)) 
+```
+
+
+```{r}
+d[seq(1, nrow(d), length.out=10000),] %>%
+  ggplot() +
+  geom_point(aes(x=rep.fitted, y=predicted, color=interaction(base.type, protein, sep=':')))
+```
+
+```{r}
+d %>%
+  ggplot() +
+  stat_ecdf(aes(x=2-rep.fitted, color=interaction(base.type, SNM, sep=':')),
+            geom = "step") +
+  # stat_ecdf(data=d %>% filter(!SNM), aes(color=is.na(length), x=2-rep.fitted), geom = "step",
+  #           color="blue") +
+  stat_ecdf(data=data.frame(random=seq(0,1,0.002)), aes(x=random), color="grey", geom = "step") 
+```
+
+
+```{r}
+dummy_df %>% ggplot() +
+  geom_contour_filled(aes(x=2-rep.fitted, y=distance, z=-predicted), binwidth = 0.00001, 
+                      show.legend = FALSE) +
+  geom_point(data=d[d$SNM,], aes(x=2-rep.fitted, y=distance), color="red", alpha=0.2) +
+  xlab("Replication Timing") +
+  ylab("Distance from Start Site") +
+  theme(text = element_text(size = 18)) +
+  ggtitle("Predicted Mutation Probability")
+```
+
+```{r}
+dummy_df %>% ggplot() +
+  geom_contour_filled(aes(x=length, y=distance, z=-predicted), binwidth = 0.00001,
+                      show.legend = FALSE) +
+  geom_point(data=d[d$SNM,], aes(x=length, y=distance), color="red", alpha=0.1) +
+  # xlab("Replication Timing") +
+  # ylab("Distance from Start Site") +
+  theme(text = element_text(size = 18)) +
+  ggtitle("Predicted Mutation Probability")
+```
+
+```{r}
+d %>% 
+  ggplot() +
+  stat_ecdf(aes(x=2-rep.fitted, color=SNM), geom = "step") +
+  stat_ecdf(data=data.frame(random=seq(0,1,0.002)), aes(x=random), color="grey", geom = "step") +
+  scale_color_viridis_d() +
+  xlab("Replication Timing") +
+  ylab("Cumulative density") +
+  theme(text = element_text(size = 18))
+```
+```{r}
+d %>%
+  ggplot() +
+  geom_density(aes(x=distance/length, color=SNM))
+```
+
+```{r}
+dummy_df %>% ggplot() +
+  geom_point(aes(x=distance, y=predicted))
+```
+
+```{r}
+dummy_df %>% ggplot() +
+  geom_point(aes(x=distance, y=predicted, color=interaction(protein, collision, sep = ":"))) +
+  scale_color_viridis_d() 
+```
+
+```{r}
+n = 20
+dummy_df <- expand.grid(
+  base.type = c("CG"),
+  rep.fitted = mean(d$rep.fitted),
+  protein = c(TRUE, FALSE),
+  distance = seq(min(d$distance), max(d$distance), length.out=n),
+  collision = c(1, 0),
+  transcripts = mean(d$transcripts),
+  length = mean(d$length)
+)
+
+dummy_df$predicted <- predict(mod, newdata=dummy_df, type="response")
+```
+
+
+```{r}
+dummy_df %>% ggplot() +
+  geom_line(aes(x=distance, y=predicted, color=interaction(protein, collision, sep = ":"))) +
+  geom_density(data=d[d$SNM & d$protein & d$collision,], aes(x=distance), color="red", alpha=0.1) +
+  geom_density(data=d[d$SNM & !d$protein & d$collision,], aes(x=distance), color="orange", alpha=0.1) +
+  geom_density(data=d[d$SNM & d$protein & !d$collision,], aes(x=distance), color="pink", alpha=0.1) +
+  geom_density(data=d[d$SNM & !d$protein & !d$collision,], aes(x=distance), color="brown", alpha=0.1) +
+  scale_color_viridis_d() 
+```
+
+```{r}
+dummy_df %>% ggplot() +
+  geom_line(aes(x=length, y=predicted, color=interaction(protein, collision, sep = ":"))) +
+  scale_color_viridis_d() 
+```
+
+
+```{r}
+dummy_df %>% ggplot() +
+  geom_line(aes(x=transcripts, y=predicted, color=interaction(protein, collision, sep = ":"))) +
+  scale_color_viridis_d() 
+```
+
+
+```{r}
+dummy_df %>% ggplot() +
+  geom_line(aes(x=rep.fitted, y=predicted, color=interaction(protein, collision, sep = ":"))) +
+  scale_color_viridis_d() 
+```
+
+
+```{r}
+t.test(d[d$SNM,]$distance/d[d$SNM,]$length, mu = 0.5)
+```
+
+
+```{r}
+dist.df <- d[d$SNM, c("SNM", "distance", "length", "predicted")]
+dist.df <- dist.df %>% arrange("length")
+dist.df %>% 
+  group_by(L = cut(length, breaks=9), D = cut(distance, breaks=100)) %>% 
+  summarize(observed = sum(SNM)) %>% 
+  mutate(distance_group = as.numeric(str_extract(D, "\\((.*),.*]", 1)),
+         length_group = as.numeric(str_extract(L, "\\((.*),.*]", 1))) %>%
+  ggplot() + 
+  geom_point(aes(x=distance_group, y=observed)) +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
+  facet_grid(cols=vars(length_group))
+
+
+dist.df <- d[, c("SNM", "distance", "length", "predicted")]
+dist.df %>% 
+  group_by(L = cut(length, breaks=10), SNM) %>% 
+  summarize(mean(distance), sd(distance), n=n()) %>%
+  pivot_wider(names_from = SNM, values_from = c("mean(distance)", "sd(distance)", "n")) %>%
+  mutate(se <- s/sqrt(n))
+  
+
+ggplot() + 
+  geom_point(aes(x=L, y=`TRUE`/`FALSE`), color='red') +
+  geom_hline(yintercept=1) +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+
+
+# q <- t %>% 
+#   filter(!is.na(d$distance)) %>%
+#   group_by(G = cut(predict_all, breaks=unique(quantile(predict_all, probs=seq(0, 1, by=0.01))))) %>%
+#   summarize(predicted = mean(predict_all), observed = mean(SNM), count=n())
+```
+
+
+```{r}
+# library(car)
+# avPlots(mod, layout=c(1,3))
+```
+
+
+

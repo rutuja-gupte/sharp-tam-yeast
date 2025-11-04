@@ -11,7 +11,7 @@ d$collision <- (d$collision.dip + d$collision.hap)/2
 # d <- d %>% filter(transcripts < 15)
 d <- d %>% filter(transcripts < 2.5e4)
 
-d <- d %>% filter(!is.na(length))
+# d <- d %>% filter(!is.na(length))
 
 head(d)
 
@@ -27,7 +27,7 @@ print(summary(lm0))
 print(1 - (summary(lm0)$deviance/summary(lm0)$null.deviance))
 
 lm2 <- glm(SNM ~ (base.type + rep.fitted + protein +
-                    transcripts + collision + distance + I(distance^2))^2 + transcripts:length + length, 
+                    transcripts + collision)^2, 
            d, family="binomial")
 print(summary(lm2))
 print(1 - (summary(lm2)$deviance/summary(lm2)$null.deviance))

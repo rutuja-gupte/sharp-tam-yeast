@@ -7,29 +7,21 @@ variables = pd.Series(['base.type',
 'protein',            
 'transcripts' ,               
 'collision'    ,              
-'distance'      ,            
 'base.type*rep.fitted'   , 
 'base.type*protein'   ,
 'base.type*transcripts',   
 'base.type*collision'     ,
-'base.type*distance'      ,
 'rep.fitted*protein'    ,
 'rep.fitted*transcripts'    ,
 'rep.fitted*collision'      ,
-'rep.fitted*distance'       ,
 'protein*transcripts'   ,
 'protein*collision'     ,
-'protein*distance'       ,
-'transcripts*collision'     ,
-'transcripts*distance'      ,
-'collision*distance'        ,
-'transcripts:length',
-'I(distance^2)'])
+'transcripts*collision'])
 
-with open("/code/stepper_pro.R") as f:
+with open("/code/stepper_all.R") as f:
     file_contents = f.read()
 
-for i in range(25):
+for i in range(30):
     print(f"batch: {i}", flush=True)
     processes = []
     for i in range(2):

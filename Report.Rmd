@@ -159,6 +159,7 @@ t2
 ```{r}
 hist(d$distance)
 ```
+
 ```{r}
 d %>% filter(!is.na(distance)) %>% ggplot() +
   geom_point(aes(x=SNM, y=distance))

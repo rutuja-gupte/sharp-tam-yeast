@@ -16,7 +16,7 @@ library(tidyverse)
 
 ```{r}
 print("loading data")
-d <- read.delim("/outs/the_greater_big_data_file.txt", header=TRUE, sep=" ")
+d <- read.delim("/outs/the_greater_big_data_file_bigger.txt", header=TRUE, sep=" ")
 print("loaded data. breathe.")
 
 d$rep.fitted <- (d$rep.fitted.dip + d$rep.fitted.hap)/2
@@ -81,7 +81,7 @@ quantile(d$stops)
 quantile(d$transcripts)
 
 
-d <- d %>% filter(transcripts < 15)
+d <- d %>% filter(transcripts < 2.5e4)
 quantile(d$stops)
 quantile(d$transcripts)
 ```

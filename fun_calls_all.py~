@@ -26,13 +26,13 @@ variables = pd.Series(['base.type',
 'transcripts:length',
 'I(distance^2)'])
 
-with open("/code/stepper_pro.R") as f:
+with open("/code/stepper_nt.R") as f:
     file_contents = f.read()
 
-for i in range(25):
+for i in range(5):
     print(f"batch: {i}", flush=True)
     processes = []
-    for i in range(2):
+    for i in range(4):
         print(f"item: {i}", flush=True)
         rand = random.choices([True, False], k=len(variables)-2)
         name = "".join([str(item)[0] for item in rand])
