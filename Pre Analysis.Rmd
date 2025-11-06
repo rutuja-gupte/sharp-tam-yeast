@@ -287,6 +287,12 @@ head(net)
 ```
 
 ```{r}
+unique(net$types)
+```
+
+
+
+```{r}
 plus <- net %>% filter(strand == "+")
 minus <- net %>% filter(strand == "-")
 
