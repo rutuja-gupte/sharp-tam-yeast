@@ -427,6 +427,12 @@ d$predicted <- predict(mod, newdata = d, type = "response")
 ```
 
 
+```{r}
+d %>% ggplot() +
+  geom_density(aes(color=SNM, x=rep.fitted))
+```
+
+
 
 ```{r}
 m <- glm.nb(formula = SNM ~ base.type + rep.fitted + protein + distance +
@@ -881,3 +887,99 @@ coeffs %>%
   ylab("PVE") +
   xlab("Predictors")
 ```
+
+
+
+```{r}
+df <- read.csv("/outs/by_feature.csv")
+head(df)
+```
+
+
+```{r}
+snms <- d[d$SNM,]
+```
+
+```{r}
+counts <- c()
+for (i in 1:nrow(df)){
+  lower <- df[i,"start"]
+  upper <- df[i,"end"]
+  # print(df[i,])
+  # print(snms[(snms$pos>=lower) & (snms$pos<=upper),])
+  counts <- c(counts, nrow(snms[(snms$pos>=lower) & (snms$pos<=upper),]))
+}
+# counts
+df$SNM <- counts
+```
+
+
+```{r}
+df %>% head()
+```
+
+```{r}
+df %>% ggplot() +
+  geom_histogram(aes(x=SNM))
+```
+
+```{r}
+var(df$SNM); mean(df$SNM)
+```
+
+```{r}
+model1 <- glm(SNM ~ length + reads + length*reads, data=df, family="poisson")
+summary(model1)
+```
+
+```{r}
+model2 <- glm(SNM ~ length + reads + length*reads, data=df, family="quasipoisson")
+summary(model2)
+```
+
+
+```{r}
+library(MASS)
+```
+
+```{r}
+model3 <- glm.nb(SNM ~ length + reads + length*reads, data=df)
+summary(model3)
+```
+```{r}
+pchisq(2 * (logLik(model3) - logLik(model1)), df = 1, lower.tail = FALSE)
+```
+
+
+
+```{r}
+model4 <- glm(SNM ~ length:reads, data=df, family="quasipoisson")
+summary(model4)
+```
+
+
+```{r}
+df$type %>% unique()
+df$protein <- (df["type"] == "gene") 
+```
+
+```{r}
+model5 <- glm(SNM ~ length + reads + length:reads + protein, data=df, family="quasipoisson")
+summary(model5)
+```
+
+
+```{r}
+counts <- c()
+for (i in 1:nrow(df)){
+  lower <- df[i,"start"]
+  upper <- df[i,"end"]
+  # print(df[i,])
+  # print(snms[(snms$pos>=lower) & (snms$pos<=upper),])
+  counts <- c(counts, nrow(d[(d$pos>=lower) & (d$pos<=upper) & ((d$base.type == "CG") | (d$base.type == "diNT")),]))
+}
+# counts
+df$cgs <- counts
+```
+
+
