@@ -515,6 +515,7 @@ nrow(q)
 cor(q$predicted, q$observed)
 q %>% ggplot() +
   geom_point(aes(y = observed, x = predicted)) +
+  geom_abline(slope=1, intercept=0, color="red", linetype="dashed") +
   geom_smooth(aes(y = observed, x = predicted), method = "lm", se = FALSE, color = "red") +
   # geom_abline(slope=1, intercept=0, color="red") +
   xlab("Expected mutations in quantile") +
@@ -541,6 +542,19 @@ dummy_df$predicted <- predict(mod, newdata = dummy_df, type = "response")
 ```
 
 ```{r}
+library(DescTools)
+```
+
+```{r}
+BinomCI(x=375, n=652353, method="wilson")
+```
+
+```{r}
+library(paletteer)
+```
+
+
+```{r}
 base.df <- data.frame(
   base.type = c("CpG", "C/G", "A/T"),
   sites = c(sum(d$base.type == "diNT"), sum(d$base.type == "CG"), sum(d$base.type == "AT")),
@@ -551,16 +565,26 @@ base.df <- data.frame(
 )
 
 base.df$mutated_fraction <- base.df$mutations / base.df$sites
+base.df[,c("est", "lower", "upper")] <- t(apply(base.df,1,function(r){BinomCI(as.numeric(r['mutations']), as.numeric(r['sites']), method="wilson")}))
 base.df
 
 base.df %>%
   ggplot() +
-  geom_col(aes(x = base.type, y = mutated_fraction / 624598, fill = base.type)) +
-  scale_fill_viridis_d() +
+  geom_col(aes(x = base.type, y = mutated_fraction / 624598, fill = base.type), show.legend=FALSE) +
+  geom_errorbar(aes(x = base.type, ymin = lower/624598, ymax = upper/624598), width=0.3) +
+  # scale_fill_viridis_d(option = ) +
+  # scale_fill_paletteer_d("LaCroixColoR::Pamplemousse") +
+  scale_fill_paletteer_d("ggthemes::wsj_dem_rep") +
   xlab("Site Type") +
   ylab("Mutation Rate") +
-  theme(text = element_text(size = 18))
+  theme(text = element_text(size = 18))  +
+  theme_bw(base_size=18)
 ```
+
+```{r}
+apply(base.df,1,function(r){BinomCI(as.numeric(r['mutations']), as.numeric(r['sites'][1]), method="wilson")})
+```
+
 
 ```{r}
 # 1. Enter data and calculate original mean/sd, n
@@ -615,36 +639,115 @@ t.test(d[!d$SNM, ]$rep.fitted)
 
 
 ```{r}
-rep.sample <- sample(d$rep.fitted, nrow(d), replace = TRUE)
+library(cowplot)
 ```
 
 
-```{r}
-t.test(rep.sample)
-t.test(d$rep.fitted)
-```
 
 ```{r}
 rep.df <- data.frame(
-  site.type = c("random", "SNM", "Non SNM"),
+  site.type = c("SNM", "Non SNM"),
   rep.fitted = c(
-    mean(rep.sample),
     mean(d[d$SNM, ]$rep.fitted),
     mean(d[!d$SNM, ]$rep.fitted)
   ),
-  lower = c(1.365685, 1.341576, 1.365688),
-  upper = c(1.366012, 1.362088, 1.366016)
+  lower = c(1.341558, 1.365688),
+  upper = c(1.362010, 1.366016)
 )
 
-rep.df %>%
+rep.plot <- rep.df %>%
   ggplot() +
-  geom_errorbar(aes(x = factor(site.type, levels = site.type), y = 2 - rep.fitted, color = site.type, ymin = 2 - upper, ymax = 2 - lower)) +
-  scale_color_viridis_d(option = "H") +
-  xlab("Site") +
+  geom_point(aes(x = factor(site.type, levels = site.type), y = 2 - rep.fitted, color=site.type), show.legend = FALSE) +
+  geom_errorbar(aes(x = factor(site.type, levels = site.type), y = 2 - rep.fitted, ymin = 2 - upper, ymax = 2 - lower, color=site.type), width=0.3, show.legend=FALSE) +
+  scale_color_paletteer_d("nbapalettes::sixers_retro") +
+  xlab("") +
   ylab("Replication timing") +
-  theme(text = element_text(size = 18)) +
+  theme_bw(base_size=12) +
   ylim(0.62, 0.67)
+
+rep.plot
 ```
+
+```{r}
+p <- d %>% ggplot() + 
+  # geom_density(aes(x=2-rep.fitted, color=SNM)) +
+  stat_ecdf(aes(x=2-rep.fitted, color=SNM)) +
+  scale_color_paletteer_d("nbapalettes::sixers_retro") +
+  theme_half_open() +
+  theme(legend.justification = c("right", "bottom"),) +
+  xlab("Replication Timing") +
+  ylab("Density")
+
+p
+```
+
+
+```{r}
+# inset <- ggplot(mpg, aes(drv)) + 
+#   geom_bar(fill = "skyblue2", alpha = 0.7) + 
+#   scale_y_continuous(expand = expansion(mult = c(0, 0.05))) +
+#   theme_minimal_hgrid(11)
+
+ggdraw(p + theme(legend.justification = c("right", "bottom"),)) +
+  draw_plot(rep.plot, .1, .5, .5, .5) #+
+  # draw_plot_label(
+  #   c("A", "B"),
+  #   c(0, 0.45),
+  #   c(1, 1),
+  #   size = 12
+  # )
+
+```
+
+
+```{r}
+rep.cuts = cut(2-d$rep.fitted, breaks=seq(0,1,0.2))
+rep.df <- data.frame(rep.cuts = rep.cuts, muts = d$SNM, 
+                     bases=case_when(d$base.type == "diNT" ~ "CpG",
+                                     d$base.type == "AT" ~ "A/T",
+                                     d$base.type == "CG" ~ "C/G"), 
+                     protein=case_when(d$protein ~ "Gene",
+                                       !d$protein ~ "Non-Gene")
+                     ) %>% group_by(rep.cuts, bases, protein) %>% summarize(n=n(), snms=sum(muts), fraction=sum(muts)/n())
+
+rep.df$group <- as.numeric(str_extract(as.character(rep.df$rep.cuts), "\\((.*),.*]", 1))
+rep.df
+
+rep.df[,c("est", "lower", "upper")] <- t(apply(rep.df,1,function(r){BinomCI(as.numeric(r['snms']), as.numeric(r['n']), method="wilson")}))
+rep.df
+
+rep.df %>% ggplot() +
+  geom_line(aes(x=group, y=fraction/624598, color=bases)) +
+  # geom_point
+  geom_errorbar(aes(x = group, ymin = lower/624598, ymax = upper/624598, color=bases), width=0.03) +
+  geom_point(aes(x=group, y=fraction/624598, color=bases)) + 
+  geom_smooth(aes(x=group, y=fraction/624598, color=bases), linetype="dotted", method="lm", se=FALSE) +
+  scale_color_paletteer_d("nbapalettes::warriors_city", guide = guide_legend(title="Base Type")) +
+  xlab("Replication Timing") +
+  ylab("Mutation Rate") +
+  facet_wrap(vars(protein)) +
+  theme_bw(base_size=12) +
+  ylim(0, 2.5e-09) 
+
+
+```
+
+
+```{r}
+
+```
+
+
+
+```{r}
+library(vioplot)
+
+with(d , vioplot( 
+  rep.fitted[SNM] , rep.fitted[!SNM],  
+  col=rgb(0.1,0.4,0.7,0.7) , names=c("SNM","Non SNM") 
+))
+```
+
 
 
 ```{r}
@@ -915,6 +1018,9 @@ df$SNM <- counts
 
 
 ```{r}
+dim(df)
+df <- df %>% drop_na()
+dim(df)
 df %>% head()
 ```
 
@@ -946,6 +1052,7 @@ library(MASS)
 model3 <- glm.nb(SNM ~ length + reads + length*reads, data=df)
 summary(model3)
 ```
+
 ```{r}
 pchisq(2 * (logLik(model3) - logLik(model1)), df = 1, lower.tail = FALSE)
 ```
@@ -958,28 +1065,25 @@ summary(model4)
 ```
 
 
-```{r}
-df$type %>% unique()
-df$protein <- (df["type"] == "gene") 
-```
 
 ```{r}
 model5 <- glm(SNM ~ length + reads + length:reads + protein, data=df, family="quasipoisson")
 summary(model5)
 ```
 
+```{r}
+model6 <- glm(SNM ~ base.type + rep.fitted + protein + collision + reads + length + base.type:protein + base.type:reads + base.type:length + rep.fitted:reads + rep.fitted:length + protein:reads + protein:length + collision:length + reads:length, data=df, family="quasipoisson")
+summary(model6)
+```
 
 ```{r}
-counts <- c()
-for (i in 1:nrow(df)){
-  lower <- df[i,"start"]
-  upper <- df[i,"end"]
-  # print(df[i,])
-  # print(snms[(snms$pos>=lower) & (snms$pos<=upper),])
-  counts <- c(counts, nrow(d[(d$pos>=lower) & (d$pos<=upper) & ((d$base.type == "CG") | (d$base.type == "diNT")),]))
-}
-# counts
-df$cgs <- counts
+df$predicted <- predict(model6, newdata=df, type="response")
+df %>% ggplot() +
+  geom_point(aes(x=SNM, y=predicted))
+```
+
+```{r}
+cor(df$SNM, df$rep.fitted)
 ```
 
 

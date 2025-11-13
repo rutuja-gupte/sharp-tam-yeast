@@ -29,7 +29,7 @@ Mutations
 ```{r}
 load("/data/Sharp_etal_variants")
 
-mut <- rv %>% select(CHROM, POS, TYPE, ploidy, HET, MAT, RDH)
+mut <- rv %>% dplyr::select(CHROM, POS, TYPE, ploidy, HET, MAT, RDH)
 mut$chr <- sapply(mut$CHROM,function(i){which(chr_names2==i)})
 mut$pos <- mut$POS
 mut$type <- mut$TYPE
@@ -287,7 +287,7 @@ head(net)
 ```
 
 ```{r}
-unique(net$types)
+# unique(net$types)
 ```
 
 
