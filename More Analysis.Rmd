@@ -423,6 +423,17 @@ summary(mod)
 
 
 ```{r}
+mod2 <- glm(
+  formula = SNM ~ base.type + rep.fitted + protein + distance +
+    collision + I(distance^2) + base.type:collision + transcripts:length +
+    protein:distance + base.type:distance + distance:collision + length,
+  family = "binomial", data = d
+)
+summary(mod2)
+```
+
+
+```{r}
 d$predicted <- predict(mod, newdata = d, type = "response")
 ```
 
@@ -515,12 +526,13 @@ nrow(q)
 cor(q$predicted, q$observed)
 q %>% ggplot() +
   geom_point(aes(y = observed, x = predicted)) +
-  geom_abline(slope=1, intercept=0, color="red", linetype="dashed") +
-  geom_smooth(aes(y = observed, x = predicted), method = "lm", se = FALSE, color = "red") +
+  geom_abline(slope=1, intercept=0, color="#C8102EFF", linetype="dashed") +
+  geom_smooth(aes(y = observed, x = predicted), method = "lm", se = FALSE, color = "#C8102EFF") +
   # geom_abline(slope=1, intercept=0, color="red") +
   xlab("Expected mutations in quantile") +
   ylab("Observed mutations in quantile") +
-  theme(text = element_text(size = 18))
+  theme_bw(base_size=18)
+  # theme(text = element_text(size = 18))
 ```
 
 ```{r}
@@ -702,13 +714,44 @@ ggdraw(p + theme(legend.justification = c("right", "bottom"),)) +
 
 ```{r}
 rep.cuts = cut(2-d$rep.fitted, breaks=seq(0,1,0.2))
-rep.df <- data.frame(rep.cuts = rep.cuts, muts = d$SNM, 
+other.df <- data.frame(rep.cuts = rep.cuts, muts = d$SNM, 
                      bases=case_when(d$base.type == "diNT" ~ "CpG",
                                      d$base.type == "AT" ~ "A/T",
                                      d$base.type == "CG" ~ "C/G"), 
                      protein=case_when(d$protein ~ "Gene",
                                        !d$protein ~ "Non-Gene")
-                     ) %>% group_by(rep.cuts, bases, protein) %>% summarize(n=n(), snms=sum(muts), fraction=sum(muts)/n())
+                     ) %>% group_by(rep.cuts, protein) %>% summarize(n=n(), snms=sum(muts), fraction=sum(muts)/n())
+
+other.df$group <- as.numeric(str_extract(as.character(other.df$rep.cuts), "\\((.*),.*]", 1))
+other.df
+
+other.df[,c("est", "lower", "upper")] <- t(apply(other.df,1,function(r){BinomCI(as.numeric(r['snms']), as.numeric(r['n']), method="wilson")}))
+other.df
+other.df$bases = "All"
+
+other.df %>% ggplot() +
+  geom_line(aes(x=group, y=fraction/624598)) +
+  # geom_point
+  geom_errorbar(aes(x = group, ymin = lower/624598, ymax = upper/624598), width=0.03) +
+  geom_point(aes(x=group, y=fraction/624598)) + 
+  geom_smooth(aes(x=group, y=fraction/624598), method="lm", se=FALSE, lty="11") +
+  scale_color_paletteer_d("nbapalettes::warriors_city", guide = guide_legend(title="Base Type")) +
+  xlab("Replication Timing") +
+  ylab("Mutation Rate") +
+  facet_wrap(vars(protein)) +
+  theme_bw(base_size=12) +
+  ylim(0, 0.75e-09) 
+```
+
+```{r}
+rep.cuts = cut(2-d$rep.fitted, breaks=seq(0,1,0.2))
+rep.df <- data.frame(rep.cuts = rep.cuts, muts = d$SNM, 
+                     bases=case_when(d$base.type == "diNT" ~ "CpG",
+                                     d$base.type == "AT" ~ "A/T",
+                                     d$base.type == "CG" ~ "C/G"),
+                     protein=case_when(d$protein ~ "Gene",
+                                       !d$protein ~ "Non-Gene")
+                     ) %>% group_by(rep.cuts, bases, protein) %>% summarize(n=n(), snms=sum(muts), fraction=sum(muts)/n()) 
 
 rep.df$group <- as.numeric(str_extract(as.character(rep.df$rep.cuts), "\\((.*),.*]", 1))
 rep.df
@@ -717,24 +760,77 @@ rep.df[,c("est", "lower", "upper")] <- t(apply(rep.df,1,function(r){BinomCI(as.n
 rep.df
 
 rep.df %>% ggplot() +
-  geom_line(aes(x=group, y=fraction/624598, color=bases)) +
+  # geom_line(aes(x=group, y=fraction/624598, color=bases)) +
   # geom_point
-  geom_errorbar(aes(x = group, ymin = lower/624598, ymax = upper/624598, color=bases), width=0.03) +
-  geom_point(aes(x=group, y=fraction/624598, color=bases)) + 
-  geom_smooth(aes(x=group, y=fraction/624598, color=bases), linetype="dotted", method="lm", se=FALSE) +
-  scale_color_paletteer_d("nbapalettes::warriors_city", guide = guide_legend(title="Base Type")) +
+  geom_errorbar(aes(x = group, ymin = lower/624598, ymax = upper/624598, color=as.factor(bases)), width=0.03) +
+  geom_point(aes(x=group, y=fraction/624598, color=as.factor(bases))) + 
+  geom_smooth(aes(x=group, y=fraction/624598, color=as.factor(bases)), method="lm", se=FALSE, lty="11") +
+  scale_color_paletteer_d("nbapalettes::knicks_city", guide = guide_legend(title="Base Type")) +
   xlab("Replication Timing") +
   ylab("Mutation Rate") +
   facet_wrap(vars(protein)) +
   theme_bw(base_size=12) +
-  ylim(0, 2.5e-09) 
+  coord_cartesian(ylim=c(0, 2.5e-09)) +
+  # geom_point
+  geom_errorbar(data = other.df, aes(x = group, ymin = lower/624598, ymax = upper/624598, color=as.factor(bases)), width=0.03) +
+  geom_point(data = other.df, aes(x=group, y=fraction/624598, color=as.factor(bases))) + 
+  geom_smooth(data = other.df, aes(x=group, y=fraction/624598, color=as.factor(bases)), method="lm", se=FALSE, lty="11")
+```
 
-
+```{r}
+print("something")
 ```
 
 
-```{r}
 
+```{r, fig.width = 20}
+len.cuts = cut(d$length, breaks=seq(0,max(d$length),max(d$length)/15))
+dist.df <- data.frame(len.cuts = len.cuts, muts = d$SNM,
+                     length = d$length,
+                     distance = d$distance,
+                     rep.timing = d$rep.fitted > 1.5,
+                     bases=case_when(d$base.type == "diNT" ~ "CpG",
+                                     d$base.type == "AT" ~ "A/T",
+                                     d$base.type == "CG" ~ "C/G"), 
+                     protein=case_when(d$protein ~ "Gene",
+                                       !d$protein ~ "Non-Gene"),
+                     collision=case_when(d$collision > 0 ~ "Head-On Collision Possible",
+                                       !(d$collision > 0) ~ "Head-On Collision Not Possible")
+                     ) %>% 
+  filter(muts) %>%
+  group_by(len.cuts, protein) %>% 
+  summarize(n=n(), 
+            est.dist=MeanCI(distance, method="boot")["mean"],
+            lower.dist=MeanCI(distance, method="boot")["lwr.ci"],
+            upper.dist=MeanCI(distance, method="boot")["upr.ci"],
+            est.len=MeanCI(length/2, method="boot")["mean"],
+            lower.len=MeanCI(length/2, method="boot")["lwr.ci"],
+            upper.len=MeanCI(length/2, method="boot")["upr.ci"])
+
+dist.df$group <- as.numeric(str_extract(as.character(dist.df$len.cuts), "\\(.*,(.*)]", 1))
+dist.df
+
+dist.df %>% 
+  ggplot() +
+  geom_errorbar(aes(x = group, ymin = lower.dist, ymax = upper.dist, color=as.factor("Distance")), width=500) +
+  geom_errorbar(aes(x = group, ymin = lower.len, ymax = upper.len, color=as.factor("Length")), width=500) +
+  geom_point(aes(x=group, y=est.len, color=as.factor("mid"))) + 
+  scale_color_paletteer_d("nbapalettes::warriors_city") +
+  theme_bw(base_size=25) +
+  facet_grid(vars(protein)) +
+  coord_cartesian(ylim=c(0, 10000))
+
+
+dist.df %>% ggplot() +
+  geom_errorbar(aes(x = group, ymin = lower/624598, ymax = upper/624598), width=0.03) +
+  geom_point(aes(x=group, y=fraction/624598, color=bases)) + 
+  # geom_smooth(aes(x=group, y=fraction/624598, color=bases), method="lm", se=FALSE, lty="11") +
+  scale_color_paletteer_d("nbapalettes::warriors_city", guide = guide_legend(title="Base Type")) +
+  xlab("Distance from Start Site") +
+  ylab("Mutations") +
+  # facet_grid(vars(protein), vars(collision)) +
+  theme_bw(base_size=12) +
+  coord_cartesian(ylim=c(0, 7e-09))
 ```
 
 
@@ -825,7 +921,7 @@ dummy_df %>% ggplot() +
 ```{r}
 n <- 20
 dummy_df <- expand.grid(
-  base.type = c("CG"),
+  base.type = c("CG", "diNT", "AT"),
   rep.fitted = mean(d$rep.fitted),
   protein = c(TRUE, FALSE),
   distance = seq(min(d$distance), max(d$distance), length.out = n),
@@ -836,6 +932,15 @@ dummy_df <- expand.grid(
 
 dummy_df$predicted <- predict(mod, newdata = dummy_df, type = "response")
 ```
+
+
+```{r}
+dummy_df %>% ggplot() +
+  geom_line(aes(x = distance, y = predicted, color = base.type)) +
+  facet_grid(rows=vars(protein), cols=vars(collision)) +
+  scale_color_viridis_d()
+```
+
 
 
 ```{r}
@@ -926,6 +1031,8 @@ dist.df %>%
   geom_errorbar(aes(x = length_group, y = `mean(distance)_TRUE`, ymin = lower, ymax = upper), color = "red") +
   geom_errorbar(aes(x = length_group, y = `mean(length)_TRUE`, ymin = l, ymax = u)) +
   geom_step(aes(x = length_group, y = length_group), lines = "horizontal", direction = "mid", color = "grey") +
+  # geom_step(aes(x = length_group, y = length_group/2), lines = "horizontal", direction = "mid", color = "grey") +
+  geom_step(aes(x = length_group, y = `mean(length)_TRUE`/2), lines = "horizontal", direction = "mid", color = "grey") +
   theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1)) +
   xlab("Length group") +
   scale_x_continuous(
@@ -999,6 +1106,7 @@ head(df)
 ```
 
 
+
 ```{r}
 snms <- d[d$SNM,]
 ```
@@ -1020,6 +1128,7 @@ df$SNM <- counts
 ```{r}
 dim(df)
 df <- df %>% drop_na()
+df <- df %>% filter(!str_ends(df$type, "opp"))
 dim(df)
 df %>% head()
 ```
@@ -1030,16 +1139,29 @@ df %>% ggplot() +
 ```
 
 ```{r}
+df %>% ggplot() +
+  geom_histogram(aes(x=SNM/length))
+```
+
+
+```{r}
+df %>% 
+  ggplot() +
+  geom_point(aes(x=length, y=SNM))
+```
+
+
+```{r}
 var(df$SNM); mean(df$SNM)
 ```
 
 ```{r}
-model1 <- glm(SNM ~ length + reads + length*reads, data=df, family="poisson")
+model1 <- glm(SNM ~ length + reads + length*reads + offset(log(df$length)), data=df, family="poisson")
 summary(model1)
 ```
 
 ```{r}
-model2 <- glm(SNM ~ length + reads + length*reads, data=df, family="quasipoisson")
+model2 <- glm(SNM ~ length + reads + length*reads + offset(log(df$length)), data=df, family="quasipoisson")
 summary(model2)
 ```
 
@@ -1049,7 +1171,7 @@ library(MASS)
 ```
 
 ```{r}
-model3 <- glm.nb(SNM ~ length + reads + length*reads, data=df)
+model3 <- glm.nb(SNM ~ length + reads + length*reads + offset(log(df$length)), data=df)
 summary(model3)
 ```
 
@@ -1060,14 +1182,14 @@ pchisq(2 * (logLik(model3) - logLik(model1)), df = 1, lower.tail = FALSE)
 
 
 ```{r}
-model4 <- glm(SNM ~ length:reads, data=df, family="quasipoisson")
+model4 <- glm(SNM ~ length:reads + offset(log(df$length)), data=df, family="quasipoisson")
 summary(model4)
 ```
 
 
 
 ```{r}
-model5 <- glm(SNM ~ length + reads + length:reads + protein, data=df, family="quasipoisson")
+model5 <- glm(SNM ~ length + reads + length:reads + offset(log(df$length)), data=df, family="quasipoisson")
 summary(model5)
 ```
 
@@ -1077,9 +1199,55 @@ summary(model6)
 ```
 
 ```{r}
-df$predicted <- predict(model6, newdata=df, type="response")
+model7 <- glm(SNM ~ base.type + rep.fitted +  collision + reads + length + base.type:reads + base.type:length + rep.fitted:length + offset(log(df$length)), data=df, family="quasipoisson")
+summary(model7)
+```
+
+```{r}
+model8 <- glm(SNM ~ base.type + rep.fitted + offset(log(length)), data=df, family="quasipoisson")
+summary(model8)
+```
+
+```{r}
+min(df$rep.fitted)
+```
+
+
+```{r}
+# df$predicted <- predict(model6, newdata=df, type="response")
+
+max(df$base.type)
+df %>% filter((SNM/length)>0.03)
+
 df %>% ggplot() +
-  geom_point(aes(x=SNM, y=predicted))
+  geom_point(aes(x=base.type, y=SNM/length))
+
+df %>% ggplot() +
+  geom_point(aes(x=base.type, y=SNM))
+
+df %>% ggplot() +
+  geom_point(aes(x=length, y=SNM/length))
+
+df %>% ggplot() +
+  geom_point(aes(x=length, y=SNM))
+
+df %>% ggplot() +
+  geom_point(aes(x=log(reads), y=SNM/length))
+
+df %>% ggplot() +
+  geom_point(aes(x=log(reads), y=SNM))
+
+df %>% ggplot() +
+  geom_point(aes(x=rep.fitted, y=SNM/length))
+
+df %>% ggplot() +
+  geom_point(aes(x=rep.fitted, y=SNM))
+
+df %>% ggplot() +
+  geom_point(aes(x=protein, y=SNM/length), position="jitter")
+
+df %>% ggplot() +
+  geom_point(aes(x=protein, y=SNM), position="jitter")
 ```
 
 ```{r}
