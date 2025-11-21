@@ -1128,7 +1128,7 @@ df$SNM <- counts
 ```{r}
 dim(df)
 df <- df %>% drop_na()
-df <- df %>% filter(!str_ends(df$type, "opp"))
+df <- df %>% filter(!str_ends(type, "opp")) %>% filter(!str_ends(type, "same"))
 dim(df)
 df %>% head()
 ```
@@ -1147,13 +1147,106 @@ df %>% ggplot() +
 ```{r}
 df %>% 
   ggplot() +
-  geom_point(aes(x=length, y=SNM))
+  geom_point(aes(x=length, y=SNM+1)) +
+  scale_x_log10() +
+  scale_y_log10()
 ```
 
 
 ```{r}
 var(df$SNM); mean(df$SNM)
 ```
+
+```{r}
+df %>% filter(SNM > 30)
+```
+
+
+```{r}
+model1 <- glm(SNM ~ log(length), data=df, family=poisson(link=log))
+summary(model1)
+```
+
+
+```{r}
+model2 <- glm.nb(SNM ~ log(length), data=df)
+summary(model2)
+```
+
+Over-dispersion param is not 0
+
+```{r}
+model3 <- glm(SNM ~ log(length), data=df, family=quasipoisson(link=log))
+summary(model3)
+```
+
+```{r}
+model4 <- glm(SNM ~ base.type + log(rep.fitted) + offset(log(length)), data=df, family=quasipoisson(link=log))
+summary(model4)
+anova(model4)
+```
+mod.NB.GC <- glm.nb(Non ~ offset(I(1*log(L))) + log(gc), data = data) # model WITH gc included
+mod.NB.0 <- glm.nb(Non ~ offset(I(1*log(L))), data = data) # model WITHout gc included
+
+require(lmtest)
+lrtest(mod.NB.GC, mod.NB.0)
+
+```{r}
+library(lmtest)
+model5 <- glm.nb(SNM ~ log(base.type) + offset(log(length)), data=df)
+summary(model5)
+
+model6 <- glm.nb(SNM ~ offset(log(length)), data=df)
+summary(model6)
+lrtest(model6, model5)
+```
+
+```{r}
+AIC(model5)
+AIC(model6)
+```
+
+
+```{r}
+model7 <- glm.nb(SNM ~ log(base.type) + log(reads)*log(length) + offset(log(length)), data=df)
+summary(model7)
+anova(model7)
+lrtest(model7, model5)
+```
+
+
+```{r}
+model8 <- glm.nb(SNM ~ log(base.types) + log(reads) + offset(log(length)), data=df)
+summary(model8)
+anova(model8)
+lrtest(model8, model5)
+```
+
+
+```{r}
+pca <- as.data.frame(prcomp(~ (reads + length + base.type + rep.fitted + collision)^2, data=df, scale.=TRUE)$x)
+
+model9 <- glm.nb(df$SNM ~ (.), data=pca)
+summary(model9)
+```
+```{r}
+full <- glm.nb(SNM ~ collision + offset(log(length)), data=df)
+null <- glm.nb(SNM ~ offset(log(length)), data=df)
+
+lrtest(null, full)
+```
+
+reads + length + base.type + rep.fitted + collision + protein
+
+```{r}
+model10 <- glm.nb(SNM ~ base.type + rep.fitted + length*reads + collision, data=df)
+summary(model10)
+
+str(df)
+```
+
+
+
 
 ```{r}
 model1 <- glm(SNM ~ length + reads + length*reads + offset(log(df$length)), data=df, family="poisson")
@@ -1185,6 +1278,7 @@ pchisq(2 * (logLik(model3) - logLik(model1)), df = 1, lower.tail = FALSE)
 model4 <- glm(SNM ~ length:reads + offset(log(df$length)), data=df, family="quasipoisson")
 summary(model4)
 ```
+
 
 
 
